@@ -6,7 +6,7 @@ require 'runsh/version'
 
 Gem::Specification.new do |spec|
   spec.name          = "runsh"
-  spec.version       = Runsh::VERSION
+  spec.version       = RunSh::VERSION
   spec.authors       = ["TOKI Yoshinori"]
   spec.email         = ["toki@freedom.ne.jp"]
   spec.summary       = %q{TODO: Write a short summary. Required.}

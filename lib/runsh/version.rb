@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-module Runsh
+module RunSh
   VERSION = '0.0.1'
 end
 

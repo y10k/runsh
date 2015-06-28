@@ -2,8 +2,7 @@
 
 require 'runsh/version'
 
-module Runsh
-  # Your code goes here...
+module RunSh
 end
 
 # Local Variables:
