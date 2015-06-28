@@ -9,6 +9,11 @@ Rake::TestTask.new do |task|
   end
 end
 
+desc 'run interactive RunSh.'
+task :run do
+  sh *%w[ bundle exec ruby lib/runsh.rb ]
+end
+
 # Local Variables:
 # mode: Ruby
 # indent-tabs-mode: nil
