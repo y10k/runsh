@@ -66,6 +66,59 @@ module RunSh
       self
     end
   end
+
+  class Engine
+    def initialize
+      @command_parser = CommandParser.new
+    end
+
+    def put_line(line)
+      token_list = RunSh.scan_token(line)
+      @command_parser.scan_line(token_list) do |cmd_type, *cmd_list|
+        case (cmd_type)
+        when :run
+          system(*cmd_list)
+        else
+          raise "unknown command type: #{cmd_type}"
+        end
+      end
+
+      $?.exitstatus
+    end
+  end
+
+  class Shell
+    def initialize
+      @engine = Engine.new
+    end
+
+    def run(*args)
+      if (args.empty?) then
+        input = STDIN
+      else
+        shell_script = args[0]
+        input = File.open(shell_script, 'r')
+      end
+
+      exit_status = 0
+      begin
+        loop do
+          print 'runsh$ ' if input.tty?
+          line = input.gets or break
+          exit_status = @engine.put_line(line)
+        end
+      ensure
+        input.close
+      end
+
+      exit(exit_status)
+    end
+  end
+end
+
+if ($0 == __FILE__) then
+  shell = RunSh::Shell.new
+  shell.run(*ARGV)
 end
 
 # Local Variables:
