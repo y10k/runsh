@@ -6,7 +6,7 @@ module RunSh
   SPECIAL_SEPARATORS = %w[
     || |  &&  &
     <  >
-    (( )) (  )  {{ }} { }
+    (( )) (  ) { }
     $(( $( ${{ ${ $
     ` \\  "
     ;

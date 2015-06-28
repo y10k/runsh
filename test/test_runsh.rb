@@ -31,14 +31,12 @@ module RunSh::Test
                      [ :sep, '<' ], [ :sep, '>' ],
                      [ :sep, '((' ], [ :sep, '(' ],
                      [ :sep, '))' ], [ :sep, ')' ],
-                     [ :sep, '{{' ], [ :sep, '{' ],
-                     [ :sep, '}}' ], [ :sep, '}' ],
+                     [ :sep, '{' ], [ :sep, '}' ],
                      [ :sep, '$((' ], [ :sep, '))' ],
                      [ :sep, '$(' ], [ :sep, ')' ],
-                     [ :sep, '${{' ], [ :sep, '}}' ],
                      [ :sep, '${' ], [ :sep, '}' ],
                      [ :sep, "\\" ], [ :sep, '$' ]
-                   ], RunSh.scan_token(%w[ ||| &&& <> ((( ))) {{{ }}} $(()) $() ${{}} ${} \\ $ ].join('')))
+                   ], RunSh.scan_token(%w[ ||| &&& <> ((( ))) {} $(()) $() ${} \\ $ ].join('')))
     end
 
     def test_command_parser
