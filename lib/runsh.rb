@@ -34,6 +34,38 @@ module RunSh
     token_list
   end
   module_function :scan_token
+
+  class CommandParser
+    def scan_line(token_list)
+      return enum_for(:scan_line, token_list) unless block_given?
+
+      cmd = [ :run ]
+      while (token = token_list.shift)
+        case (token[0])
+        when :word
+          cmd << token[1]
+        when :sep
+          case (token[1])
+          when ';', "\n"
+            yield(cmd)
+            cmd = [ :run ]
+          when /^[\ \t]+$/
+            # skipped
+          else
+            cmd << token[1]
+          end
+        else
+          raise "unknown token: #{token.join(', ')}"
+        end
+      end
+
+      if (cmd.length > 1) then
+        yield(cmd)
+      end
+
+      self
+    end
+  end
 end
 
 # Local Variables:
