@@ -3,32 +3,36 @@
 require 'runsh/version'
 
 module RunSh
-  SPECIAL_SEPARATORS = %w[
-    || |  &&  &
-    <  >
-    (( )) (  ) { }
-    $(( $( ${{ ${ $
-    ` \\  "
-    ;
-  ]
+  SPECIAL_SEPARATORS = %w[ ; ]
 
-  SEPARATOR_SCAN_PATTEN = /
-    (?<word> .*?)
-    (?<separator>
-      (?:
-        #{SPECIAL_SEPARATORS.map{|s| Regexp.quote(s) }.join('|')} |
-        [\ \t]+ |
-        \n |
-        \Z
+  TOKEN_FETCH_PATTERN = /
+    (?<word> .*? )
+    (?:
+      (?<newline>
+        \n
+      ) |
+      (?<space>
+        [\ \t]+
+      ) |
+      (?<special>
+        #{SPECIAL_SEPARATORS.map{|s| Regexp.quote(s) }.join('|')}
       )
-    )
+    ) |
+    (?<word> .* )
   /mx
 
   def scan_token(source_text)
     token_list = []
-    source_text.scan(SEPARATOR_SCAN_PATTEN) do
-      token_list.push([ :word, $~[:word] ]) unless $~[:word].empty?
-      token_list.push([ :sep, $~[:separator] ]) unless $~[:separator].empty?
+
+    source_text.scan(TOKEN_FETCH_PATTERN) do
+      unless ($~[:word].empty?) then
+        token_list.push([ :word, $~[:word] ])
+      end
+      for token_type in [ :special, :space, :newline ]
+        if ($~[token_type]) then
+          token_list.push([ token_type, $~[token_type] ])
+        end
+      end
     end
 
     token_list
