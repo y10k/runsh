@@ -3,68 +3,72 @@
 require 'runsh/version'
 
 module RunSh
-  SPECIAL_SEPARATORS = %w[ ; ]
-
-  TOKEN_FETCH_PATTERN = /
-    (?<word> .*? )
-    (?:
-      (?<newline>
-        \n
-      ) |
-      (?<space>
-        [\ \t]+
-      ) |
-      (?<special>
-        #{SPECIAL_SEPARATORS.map{|s| Regexp.quote(s) }.join('|')}
-      )
-    ) |
-    (?<word> .* )
-  /mx
-
-  def scan_token(source_text)
-    token_list = []
-
-    source_text.scan(TOKEN_FETCH_PATTERN) do
-      unless ($~[:word].empty?) then
-        token_list.push([ :word, $~[:word] ])
-      end
-      for token_type in [ :special, :space, :newline ]
-        if ($~[token_type]) then
-          token_list.push([ token_type, $~[token_type] ])
-        end
-      end
+  class CommandParser
+    def initialize
+      root_frame = [ :parse_list!, [] ]
+      @stack = [ root_frame ]
     end
 
-    token_list
-  end
-  module_function :scan_token
+    TOKEN_FETCH_PATTERN = /
+      ^(?:
+        (?:
+          (?<word> .*? )
+          (?:
+            (?<space> [ \t]+ ) |
+            (?<escape> \\ ) |
+            (?<eoc> \n | ; )
+          )
+        ) |
+        (?<word> .* )
+      )
+    /x
 
-  class CommandParser
-    def scan_line(token_list)
-      return enum_for(:scan_line, token_list) unless block_given?
+    def parse_list!(script_text)
+      frame = @stack.last
+      cmd_list = frame[1]
 
-      cmd = [ :run ]
-      while (token = token_list.shift)
-        case (token[0])
-        when :word
-          cmd << token[1]
-        when :sep
-          case (token[1])
-          when ';', "\n"
-            yield(cmd)
-            cmd = [ :run ]
-          when /^[\ \t]+$/
-            # skipped
-          else
-            cmd << token[1]
-          end
-        else
-          raise "unknown token: #{token.join(', ')}"
+      script_text.sub!(TOKEN_FETCH_PATTERN, '') or raise "failed to fetch a word of list: #{script_text}"
+
+      if ($~[:word] && ! $~[:word].empty?) then
+        if (cmd_list.empty?) then
+          cmd_list << :cmd
+          cmd_list << []
+        end
+        cmd_list.last.push([ :s, $~[:word] ])
+      end
+
+      if ($~[:space]) then
+        unless (cmd_list.empty?) then
+          cmd_list << []
         end
       end
 
-      if (cmd.length > 1) then
-        yield(cmd)
+      if ($~[:escape]) then
+        raise 'not implemented escape character.'
+      end
+
+      if ($~[:eoc]) then
+        unless (cmd_list.empty?) then
+          while (cmd_list.last.empty?)
+            cmd_list.pop
+          end
+        end
+        unless (cmd_list.empty?) then
+          yield(cmd_list)
+        end
+        frame[1] = []
+      end
+
+      self
+    end
+    private :parse_list!
+
+    def parse!(script_text, &block)
+      return enum_for(:parse!, script_text) unless block_given?
+
+      until (script_text.empty?)
+        frame = @stack.last
+        send(frame[0], script_text, &block)
       end
 
       self
@@ -74,20 +78,6 @@ module RunSh
   class Engine
     def initialize
       @command_parser = CommandParser.new
-    end
-
-    def put_line(line)
-      token_list = RunSh.scan_token(line)
-      @command_parser.scan_line(token_list) do |cmd_type, *cmd_list|
-        case (cmd_type)
-        when :run
-          system(*cmd_list)
-        else
-          raise "unknown command type: #{cmd_type}"
-        end
-      end
-
-      $?.exitstatus
     end
   end
 
