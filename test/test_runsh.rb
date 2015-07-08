@@ -6,6 +6,28 @@ require 'test/unit'
 
 module RunSh::Test
   class CommandParserTest < Test::Unit::TestCase
+    def test_compact_field_list!
+      assert_equal([ [ :s, 'foo' ] ],
+                   RunSh::CommandParser.compact_command_field!([ [ :s, 'foo' ] ]))
+
+      assert_equal([ [ :s, 'foo' ] ],
+                   RunSh::CommandParser.compact_command_field!([ [ :s, 'f' ],
+                                                                 [ :s, 'o' ],
+                                                                 [ :s, 'o' ]
+                                                               ]))
+
+      assert_equal([ [ :s, 'foo' ],
+                     [ :other, 'bar' ],
+                     [ :s, 'baz' ]
+                   ],
+                   RunSh::CommandParser.compact_command_field!([ [ :s, 'f' ],
+                                                                 [ :s, 'o' ],
+                                                                 [ :s, 'o' ],
+                                                                 [ :other, 'bar' ],
+                                                                 [ :s, 'baz' ]
+                                                               ]))
+    end
+
     def setup
       @parser = RunSh::CommandParser.new
     end

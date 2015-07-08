@@ -4,6 +4,20 @@ require 'runsh/version'
 
 module RunSh
   class CommandParser
+    def self.compact_command_field!(field_list)
+      i = 0
+      while (i < field_list.length - 1)
+        if ((field_list[i][0] == :s) && (field_list[i + 1][0] == :s)) then
+          field_list[i][1] << field_list[i + 1][1]
+          field_list.delete_at(i + 1)
+        else
+          i += 1
+        end
+      end
+
+      field_list
+    end
+
     def initialize
       root_frame = [ :parse_list!, [] ]
       @stack = [ root_frame ]
@@ -54,6 +68,9 @@ module RunSh
           end
         end
         unless (cmd_list.empty?) then
+          for field_list in cmd_list
+            self.class.compact_command_field!(field_list)
+          end
           yield(cmd_list)
         end
         frame[1] = []
