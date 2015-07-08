@@ -55,13 +55,13 @@ module RunSh
         unless (cmd_list.empty?) then
           cmd_list << []
         end
-      end
-
-      if ($~[:escape]) then
-        raise 'not implemented escape character.'
-      end
-
-      if ($~[:eoc]) then
+      elsif ($~[:escape]) then
+        if (cmd_list.empty?) then
+          cmd_list << :cmd
+          cmd_list << []
+        end
+        @stack.push([ :parse_escape!, cmd_list ])
+      elsif ($~[:eoc]) then
         unless (cmd_list.empty?) then
           while (cmd_list.last.empty?)
             cmd_list.pop
@@ -79,6 +79,22 @@ module RunSh
       self
     end
     private :parse_list!
+
+    def parse_escape!(script_text)
+      script_text.sub!(/^./m, '') or raise 'unexpected empty script text.'
+      escaped_char = $&
+
+      if (escaped_char != "\n") then
+        frame = @stack.last
+        cmd_list = frame[1]
+        cmd_list.last.push([ :s, escaped_char ])
+      end
+
+      @stack.pop
+
+      self
+    end
+    private :parse_escape!
 
     def parse!(script_text, &block)
       return enum_for(:parse!, script_text) unless block_given?

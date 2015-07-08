@@ -65,6 +65,27 @@ module RunSh::Test
                            [ :cmd, [ [ :s, 'bar' ] ] ],
                            " foo ; bar ; \n")
     end
+
+    def test_parse_escape_normal_char
+      assert_command_parse([ :cmd, [ [ :s, 'foo' ] ] ], "\\foo\n")
+      assert_command_parse([ :cmd, [ [ :s, 'foo' ] ] ], "f\\oo\n")
+      assert_command_parse([ :cmd, [ [ :s, 'foo' ] ] ], "fo\\o\n")
+    end
+
+    def test_parse_escape_special_char
+      assert_command_parse([ :cmd, [ [ :s, 'foo bar' ] ] ], "foo\\ bar\n")
+      assert_command_parse([ :cmd, [ [ :s, "\\" ] ] ], "\\\\\n")
+    end
+
+    def test_parse_escape_continue
+      assert_command_parse("\\")
+      assert_command_parse([ :cmd, [ [ :s, " foo" ] ] ],
+                           " foo\n")
+
+      assert_command_parse("foo\\\n")
+      assert_command_parse([ :cmd, [ [ :s, "foobar" ] ] ],
+                           "bar\n")
+    end
   end
 end
 
