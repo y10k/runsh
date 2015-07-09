@@ -56,6 +56,21 @@ module RunSh::Test
                            " foo bar \n")
     end
 
+    def test_parse_fragments
+      assert_command_parse('foo')
+      assert_command_parse(' bar')
+      assert_command_parse(' ')
+      assert_command_parse('b')
+      assert_command_parse('a')
+      assert_command_parse('z')
+      assert_command_parse([ :cmd,
+                             [ [ :s, 'foo' ] ],
+                             [ [ :s, 'bar' ] ],
+                             [ [ :s, 'baz' ] ]
+                           ],
+                           "\n")
+    end
+
     def test_parse_command_list
       assert_command_parse([ :cmd, [ [ :s, 'foo' ] ] ],
                            [ :cmd, [ [ :s, 'bar' ] ] ],
