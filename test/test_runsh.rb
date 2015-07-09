@@ -101,6 +101,38 @@ module RunSh::Test
       assert_command_parse([ :cmd, [ [ :s, "foobar" ] ] ],
                            "bar\n")
     end
+
+    def test_parse_single_quote
+      assert_command_parse([ :cmd,
+                             [ [ :s, 'foo' ] ],
+                             [ [ :q, 'bar' ] ]
+                           ],
+                           "foo 'bar'\n")
+
+      assert_command_parse([ :cmd,
+                             [ [ :s, 'foo' ] ],
+                             [ [ :s, 'abc' ], [ :q, 'def' ], [ :s, 'g' ] ]
+                           ],
+                           "foo abc'def'g\n")
+    end
+
+    def test_parse_single_quote_special_char
+      assert_command_parse([ :cmd, [ [ :q, '"foo"' ] ] ],
+                           %Q{'"foo"'\n})
+
+      assert_command_parse([ :cmd, [ [ :q, "foo; bar\nbaz" ] ] ],
+                           "'foo; bar\nbaz'\n")
+    end
+
+    def test_parse_single_quote_continue
+      assert_command_parse("foo '\n")
+      assert_command_parse("echo HALO\n")
+      assert_command_parse([ :cmd, 
+                             [ [ :s, 'foo' ] ],
+                             [ [ :q, "\necho HALO\n" ] ]
+                           ],
+                           "'\n")
+    end
   end
 end
 

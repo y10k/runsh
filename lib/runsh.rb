@@ -30,6 +30,7 @@ module RunSh
           (?:
             (?<space> [ \t]+ ) |
             (?<escape> \\ ) |
+            (?<quote> ' ) |
             (?<eoc> \n | ; )
           )
         ) |
@@ -61,6 +62,14 @@ module RunSh
           cmd_list << []
         end
         @stack.push([ :parse_escape!, cmd_list ])
+      elsif ($~[:quote]) then
+        if (cmd_list.empty?) then
+          cmd_list << :cmd
+          cmd_list << []
+        end
+        q_str = ''
+        cmd_list.last.push([ :q, q_str ])
+        @stack.push([ :parse_single_quote!, q_str ])
       elsif ($~[:eoc]) then
         unless (cmd_list.empty?) then
           while (cmd_list.last.empty?)
@@ -95,6 +104,22 @@ module RunSh
       self
     end
     private :parse_escape!
+
+    def parse_single_quote!(script_text)
+      script_text.sub!(/^.*?'|^.+/m, '') or raise 'unexpected empty script text'
+      quoted_string = $&
+
+      frame = @stack.last
+      if (quoted_string[-1] == "'") then
+        frame[1] << quoted_string.chop!
+        @stack.pop
+      else
+        frame[1] << quoted_string
+      end
+
+      self
+    end
+    private :parse_single_quote!
 
     def parse!(script_text, &block)
       return enum_for(:parse!, script_text) unless block_given?
