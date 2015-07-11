@@ -4,8 +4,8 @@ require 'runsh/version'
 
 module RunSh
   class CommandParser
-    def self.compact_command_field!(field_list)
-      i = 0
+    def self.compact_command_field!(field_list, offset: 0)
+      i = offset
       while (i < field_list.length - 1)
         if ((field_list[i][0] == :s) && (field_list[i + 1][0] == :s)) then
           field_list[i][1] << field_list[i + 1][1]
@@ -31,6 +31,7 @@ module RunSh
             (?<space> [ \t]+ ) |
             (?<escape> \\ ) |
             (?<quote> ' ) |
+            (?<qquote> " ) |
             (?<eoc> \n | ; )
           )
         ) |
@@ -89,6 +90,11 @@ module RunSh
         q_str = ''
         cmd_list.last.push([ :q, q_str ])
         @stack.push([ :parse_single_quote!, q_str ])
+      elsif ($~[:qquote]) then
+        cmd_list_init!(cmd_list)
+        qq_list = [ :Q ]
+        cmd_list.last.push(qq_list)
+        @stack.push([ :parse_double_quote!, qq_list ])
       elsif ($~[:eoc]) then
         cmd_field_compact!(cmd_list)
         yield(cmd_list) unless cmd_list.empty?
@@ -124,6 +130,38 @@ module RunSh
       end
     end
     private :parse_single_quote!
+
+    QQUOTE_FETCH_PATTERN = /
+      ^(?:
+        (?:
+          (?<word> .*? )
+          (?:
+            (?<escape> \\ ) |
+            (?<qquote> " )
+          )
+        ) |
+        (?<word> .+ )
+      )
+    /mx
+
+    def parse_double_quote!(script_text)
+      frame = @stack.last
+      qq_list = frame[1]
+
+      script_text.sub!(QQUOTE_FETCH_PATTERN, '') or raise "failed to fetch a double quoted string: #{script_text}"
+
+      if ($~[:word]) then
+        qq_list << [ :s, $~[:word] ]
+      end
+
+      if ($~[:escape]) then
+        @stack.push([ :parse_escape!, qq_list ])
+      elsif ($~[:qquote]) then
+        self.class.compact_command_field!(qq_list, offset: 1)
+        @stack.pop
+      end
+    end
+    private :parse_double_quote!
 
     def parse!(script_text, &block)
       return enum_for(:parse!, script_text) unless block_given?

@@ -133,6 +133,79 @@ module RunSh::Test
                            ],
                            "'\n")
     end
+
+    def test_parse_double_quote
+      assert_command_parse([ :cmd,
+                             [ [ :s, 'foo' ] ],
+                             [ [ :Q,
+                                 [ :s, 'bar' ]
+                               ]
+                             ]
+                           ],
+                           %Q'foo "bar"\n')
+
+      assert_command_parse([ :cmd,
+                             [ [ :s, 'foo' ] ],
+                             [ [ :s, 'ab' ],
+                               [ :Q,
+                                 [ :s, 'cd' ]
+                               ],
+                               [ :s, 'ef' ]
+                             ]
+                           ],
+                           %Q'foo ab"cd"ef\n')
+    end
+
+    def test_parse_double_quote_special_char
+      assert_command_parse([ :cmd,
+                             [ [ :Q,
+                                 [ :s, "'foo'" ]
+                               ]
+                             ]
+                           ],
+                           %Q{"'foo'"\n})
+
+      assert_command_parse([ :cmd,
+                             [ [ :Q,
+                                 [ :s, "foo; bar\nbaz" ]
+                               ]
+                             ]
+                           ],
+                           %Q'"foo; bar\nbaz"\n')
+    end
+
+    def test_parse_double_quote_escape
+      assert_command_parse([ :cmd,
+                             [ [ :s, 'foo' ] ],
+                             [ [ :Q,
+                                 [ :s, '"Hello world."' ],
+                               ]
+                             ]
+                           ],
+                           %Q'foo "\\"Hello world.\\""\n')
+
+      assert_command_parse([ :cmd,
+                             [ [ :s, 'foo' ] ],
+                             [ [ :Q,
+                                 [ :s, 'Hello world.' ],
+                               ]
+                             ]
+                           ],
+                           %Q'foo "Hello\\\n world."\n')
+    end
+
+    def test_parse_double_quote_continue
+      assert_command_parse(%Q'foo "\n')
+      assert_command_parse("echo HALO\n")
+      assert_command_parse([ :cmd,
+                             [ [ :s, 'foo' ] ],
+                             [ [ :Q,
+                                 [ :s, "\necho HALO\n" ]
+                               ]
+                             ]
+                           ],
+                           %Q'"\n')
+    end
   end
 end
 
