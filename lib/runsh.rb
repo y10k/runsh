@@ -110,7 +110,7 @@ module RunSh
       if (escaped_char != "\n") then
         frame = @stack.last
         field_list = frame[1]
-        field_list.push([ :s, escaped_char ])
+        field_list.push([ :q, escaped_char ])
       end
 
       @stack.pop
@@ -155,13 +155,27 @@ module RunSh
       end
 
       if ($~[:escape]) then
-        @stack.push([ :parse_escape!, qq_list ])
+        @stack.push([ :parse_double_quote_escape!, qq_list ])
       elsif ($~[:qquote]) then
         self.class.compact_command_field!(qq_list, offset: 1)
         @stack.pop
       end
     end
     private :parse_double_quote!
+
+    def parse_double_quote_escape!(script_text)
+      script_text.sub!(/^./m, '') or raise 'unexpected empty script text.'
+      escaped_char = $&
+
+      if (escaped_char != "\n") then
+        frame = @stack.last
+        field_list = frame[1]
+        field_list.push([ :s, escaped_char ])
+      end
+
+      @stack.pop
+    end
+    private :parse_double_quote_escape!
 
     def parse!(script_text, &block)
       return enum_for(:parse!, script_text) unless block_given?
