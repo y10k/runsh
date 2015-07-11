@@ -211,7 +211,10 @@ module RunSh
       cmd_type, *cmd_args = cmd_list
       case (cmd_type)
       when :cmd
-        raise NotImplementedError, "unknown command type: #{cmd_type}"
+        system(*cmd_args.map{|field_list|
+                 expand_command_field(field_list)
+               })
+        $?.exitstatus
       else
         raise NotImplementedError, "unknown command type: #{cmd_type}"
       end
@@ -220,7 +223,8 @@ module RunSh
 
   class Shell
     def initialize
-      @engine = Engine.new
+      @cmd_parser = CommandParser.new
+      @cmd_intp = CommandInterpreter.new
     end
 
     def run(*args)
@@ -234,9 +238,19 @@ module RunSh
       exit_status = 0
       begin
         loop do
-          print 'runsh$ ' if input.tty?
+          if (input.tty?) then
+            if (@cmd_parser.continue?) then
+              print '> '
+            else
+              print 'runsh$ '
+            end
+          end
+
           line = input.gets or break
-          exit_status = @engine.put_line(line)
+          line << "\n" if (line[-1] != "\n")
+          @cmd_parser.parse!(line) do |cmd_list|
+            exit_status = @cmd_intp.run(cmd_list)
+          end
         end
       ensure
         input.close
