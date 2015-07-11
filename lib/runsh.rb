@@ -82,7 +82,8 @@ module RunSh
         cmd_field_add!(cmd_list)
       elsif ($~[:escape]) then
         cmd_list_init!(cmd_list)
-        @stack.push([ :parse_escape!, cmd_list ])
+        field_list = cmd_list.last
+        @stack.push([ :parse_escape!, field_list ])
       elsif ($~[:quote]) then
         cmd_list_init!(cmd_list)
         q_str = ''
@@ -93,8 +94,6 @@ module RunSh
         yield(cmd_list) unless cmd_list.empty?
         frame[1] = []
       end
-
-      self
     end
     private :parse_list!
 
@@ -104,13 +103,11 @@ module RunSh
 
       if (escaped_char != "\n") then
         frame = @stack.last
-        cmd_list = frame[1]
-        cmd_list.last.push([ :s, escaped_char ])
+        field_list = frame[1]
+        field_list.push([ :s, escaped_char ])
       end
 
       @stack.pop
-
-      self
     end
     private :parse_escape!
 
@@ -125,8 +122,6 @@ module RunSh
       else
         frame[1] << quoted_string
       end
-
-      self
     end
     private :parse_single_quote!
 
