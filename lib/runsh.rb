@@ -38,6 +38,35 @@ module RunSh
       )
     /x
 
+    def cmd_list_init!(cmd_list)
+      if (cmd_list.empty?) then
+        cmd_list << :cmd
+        cmd_list << []
+      end
+    end
+    private :cmd_list_init!
+
+    def cmd_field_add!(cmd_list)
+      unless (cmd_list.empty?) then
+        cmd_list << []
+      end
+    end
+    private :cmd_field_add!
+
+    def cmd_field_compact!(cmd_list)
+      unless (cmd_list.empty?) then
+        while (cmd_list.last.empty?)
+          cmd_list.pop
+        end
+      end
+      unless (cmd_list.empty?) then
+        for field_list in cmd_list
+          self.class.compact_command_field!(field_list)
+        end
+      end
+    end
+    private :cmd_field_compact!
+
     def parse_list!(script_text)
       frame = @stack.last
       cmd_list = frame[1]
@@ -45,43 +74,23 @@ module RunSh
       script_text.sub!(TOKEN_FETCH_PATTERN, '') or raise "failed to fetch a word of list: #{script_text}"
 
       if ($~[:word] && ! $~[:word].empty?) then
-        if (cmd_list.empty?) then
-          cmd_list << :cmd
-          cmd_list << []
-        end
+        cmd_list_init!(cmd_list)
         cmd_list.last.push([ :s, $~[:word] ])
       end
 
       if ($~[:space]) then
-        unless (cmd_list.empty?) then
-          cmd_list << []
-        end
+        cmd_field_add!(cmd_list)
       elsif ($~[:escape]) then
-        if (cmd_list.empty?) then
-          cmd_list << :cmd
-          cmd_list << []
-        end
+        cmd_list_init!(cmd_list)
         @stack.push([ :parse_escape!, cmd_list ])
       elsif ($~[:quote]) then
-        if (cmd_list.empty?) then
-          cmd_list << :cmd
-          cmd_list << []
-        end
+        cmd_list_init!(cmd_list)
         q_str = ''
         cmd_list.last.push([ :q, q_str ])
         @stack.push([ :parse_single_quote!, q_str ])
       elsif ($~[:eoc]) then
-        unless (cmd_list.empty?) then
-          while (cmd_list.last.empty?)
-            cmd_list.pop
-          end
-        end
-        unless (cmd_list.empty?) then
-          for field_list in cmd_list
-            self.class.compact_command_field!(field_list)
-          end
-          yield(cmd_list)
-        end
+        cmd_field_compact!(cmd_list)
+        yield(cmd_list) unless cmd_list.empty?
         frame[1] = []
       end
 
