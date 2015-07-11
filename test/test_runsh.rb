@@ -32,8 +32,9 @@ module RunSh::Test
       @parser = RunSh::CommandParser.new
     end
 
-    def assert_command_parse(*expected_parsed_list, script_text)
+    def assert_command_parse(*expected_parsed_list, script_text, continue: false)
       assert_equal(expected_parsed_list, @parser.parse!(script_text.dup).to_a)
+      assert_equal(continue, @parser.continue?)
     end
     private :assert_command_parse
 
@@ -57,12 +58,12 @@ module RunSh::Test
     end
 
     def test_parse_fragments
-      assert_command_parse('foo')
-      assert_command_parse(' bar')
-      assert_command_parse(' ')
-      assert_command_parse('b')
-      assert_command_parse('a')
-      assert_command_parse('z')
+      assert_command_parse('foo', continue: true)
+      assert_command_parse(' bar', continue: true)
+      assert_command_parse(' ', continue: true)
+      assert_command_parse('b', continue: true)
+      assert_command_parse('a', continue: true)
+      assert_command_parse('z', continue: true)
       assert_command_parse([ :cmd,
                              [ [ :s, 'foo' ] ],
                              [ [ :s, 'bar' ] ],
@@ -79,6 +80,9 @@ module RunSh::Test
       assert_command_parse([ :cmd, [ [ :s, 'foo' ] ] ],
                            [ :cmd, [ [ :s, 'bar' ] ] ],
                            " foo ; bar ; \n")
+
+      assert_command_parse([ :cmd, [ [ :s, 'foo' ] ] ],
+                           "foo;\n")
     end
 
     def test_parse_escape_normal_char
@@ -98,11 +102,11 @@ module RunSh::Test
     end
 
     def test_parse_escape_continue
-      assert_command_parse("\\")
+      assert_command_parse("\\", continue: true)
       assert_command_parse([ :cmd, [ [ :q, ' ' ], [ :s, 'foo' ] ] ],
                            " foo\n")
 
-      assert_command_parse("foo\\\n")
+      assert_command_parse("foo\\\n", continue: true)
       assert_command_parse([ :cmd, [ [ :s, "foobar" ] ] ],
                            "bar\n")
     end
@@ -130,8 +134,8 @@ module RunSh::Test
     end
 
     def test_parse_single_quote_continue
-      assert_command_parse("foo '\n")
-      assert_command_parse("echo HALO\n")
+      assert_command_parse("foo '\n", continue: true)
+      assert_command_parse("echo HALO\n", continue: true)
       assert_command_parse([ :cmd, 
                              [ [ :s, 'foo' ] ],
                              [ [ :q, "\necho HALO\n" ] ]
@@ -200,8 +204,8 @@ module RunSh::Test
     end
 
     def test_parse_double_quote_continue
-      assert_command_parse(%Q'foo "\n')
-      assert_command_parse("echo HALO\n")
+      assert_command_parse(%Q'foo "\n', continue: true)
+      assert_command_parse("echo HALO\n", continue: true)
       assert_command_parse([ :cmd,
                              [ [ :s, 'foo' ] ],
                              [ [ :Q,

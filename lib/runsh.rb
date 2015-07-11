@@ -23,6 +23,10 @@ module RunSh
       @stack = [ root_frame ]
     end
 
+    def continue?
+      (@stack.size > 1) || ! @stack[0][1].empty?
+    end
+
     TOKEN_FETCH_PATTERN = /
       ^(?:
         (?:
