@@ -216,6 +216,34 @@ module RunSh::Test
                            %Q'"\n')
     end
   end
+
+  class CommandInterpreterTest < Test::Unit::TestCase
+    def setup
+      @interpreter = RunSh::CommandInterpreter.new
+    end
+
+    def assert_expand_command_field(expected_expansion_result, field_list)
+      assert_equal(expected_expansion_result,
+                   @interpreter.expand_command_field(field_list))
+    end
+
+    def test_expand_command_field
+      assert_expand_command_field('foo',
+                                  [ [ :s, 'foo' ] ])
+      assert_expand_command_field(' ',
+                                  [ [ :q, ' ' ] ])
+      assert_expand_command_field('Hello world.',
+                                  [ [ :Q, [ :s, 'Hello world.' ] ] ])
+      assert_expand_command_field('foo abcdef',
+                                  [ [ :s, 'foo' ],
+                                    [ :q, ' ' ],
+                                    [ :Q,
+                                      [ :s, 'abc' ],
+                                      [ :s, 'def' ]
+                                    ]
+                                  ])
+    end
+  end
 end
 
 # Local Variables:

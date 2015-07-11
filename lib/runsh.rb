@@ -193,9 +193,28 @@ module RunSh
     end
   end
 
-  class Engine
-    def initialize
-      @command_parser = CommandParser.new
+  class CommandInterpreter
+    def expand_command_field(field_list)
+      field_list.map{|token|
+        case (token[0])
+        when :s, :q
+          token[1]
+        when :Q
+          expand_command_field(token[1..-1])
+        else
+          raise "unknown token: #{token[0]}"
+        end
+      }.join('')
+    end
+
+    def run(cmd_list)
+      cmd_type, *cmd_args = cmd_list
+      case (cmd_type)
+      when :cmd
+        raise NotImplementedError, "unknown command type: #{cmd_type}"
+      else
+        raise NotImplementedError, "unknown command type: #{cmd_type}"
+      end
     end
   end
 
