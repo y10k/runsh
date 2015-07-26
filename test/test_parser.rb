@@ -35,6 +35,23 @@ module RunSh::Test
       }
     end
 
+    def test_escape
+      parse_script("echo Hello\\ world.") {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.
+                         add('Hello').
+                         add(QuotedString.new.add(' ')).
+                         add('world.')))
+      }
+
+      parse_script("echo \\\n\tHALO") {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add('HALO')))
+      }
+    end
+
     def test_single_quote
       parse_script("echo 'Hello world.'") {
         assert_parse(CommandList.new.

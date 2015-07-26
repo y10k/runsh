@@ -103,6 +103,11 @@ module RunSh
             field_list = FieldList.new
             cmd_list.add(field_list)
           end
+        when :escape
+          escaped_char = token_value[1..-1]
+          if (escaped_char != "\n") then
+            field_list.add(QuotedString.new.add(escaped_char))
+          end
         when :quote
           field_list.add(parse_single_quote)
         when :cmd_sep, :cmd_term
