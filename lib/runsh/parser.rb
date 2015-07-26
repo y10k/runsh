@@ -69,6 +69,32 @@ module RunSh
         self
       end
     end
+
+    class DoubleQuotedList
+      def initialize
+        @values = []
+      end
+
+      attr_reader :values
+
+      def ==(other)
+        if (other.is_a? DoubleQuotedList) then
+          @values == other.values
+        end
+      end
+
+      def add(value)
+        if ((value.is_a? String) &&
+            (@values.length > 0) && (@values.last.is_a? String))
+        then
+          @values.last << value
+        else
+          @values << value
+        end
+
+        self
+      end
+    end
   end
 
   class CommandParser
@@ -110,6 +136,8 @@ module RunSh
           end
         when :quote
           field_list.add(parse_single_quote)
+        when :qquote
+          field_list.add(parse_double_quote)
         when :cmd_sep, :cmd_term
           cmd_list.eoc = token_value
           return cmd_list.strip!
@@ -134,6 +162,26 @@ module RunSh
       end
 
       raise "syntax error: not terminated single-quoted string: #{qs.string}"
+    end
+
+    def parse_double_quote
+      qq_list = DoubleQuotedList.new
+
+      each_token do |token_name, token_value|
+        case (token_name)
+        when :qquote
+          return qq_list
+        when :escape
+          escaped_char = token_value[1..-1]
+          if (escaped_char != "\n") then
+            qq_list.add(escaped_char)
+          end
+        else
+          qq_list.add(token_value)
+        end
+      end
+
+      raise "syntax error: not terminated double-quoted string: #{qq_list.values}"
     end
   end
 end

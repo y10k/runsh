@@ -65,6 +65,32 @@ module RunSh::Test
                      add(FieldList.new.add(QuotedString.new.add("foo\nbar"))))
       }
     end
+
+    def test_double_quote
+      parse_script(%Q'echo "Hello world."') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(DoubleQuotedList.new.add('Hello world.'))))
+      }
+
+      parse_script(%Q'echo "\\"Hello world.\\""') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(DoubleQuotedList.new.add('"Hello world."'))))
+      }
+
+      parse_script(%Q'echo "foo\nbar"') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(DoubleQuotedList.new.add("foo\nbar"))))
+      }
+
+      parse_script(%Q'echo "foo,\\\nbar"') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(DoubleQuotedList.new.add("foo,bar"))))
+      }
+    end
   end
 end
 
