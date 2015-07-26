@@ -133,7 +133,7 @@ module RunSh
         end
       end
 
-      raise "syntax error: not terminated single-quote string: #{qs.string}"
+      raise "syntax error: not terminated single-quoted string: #{qs.string}"
     end
   end
 end
