@@ -50,6 +50,25 @@ module RunSh
         self
       end
     end
+
+    class QuotedString
+      def initialize
+        @string = ''
+      end
+
+      attr_reader :string
+
+      def ==(other)
+        if (other.is_a? QuotedString) then
+          @string == other.string
+        end
+      end
+
+      def add(string)
+        @string << string
+        self
+      end
+    end
   end
 
   class CommandParser
@@ -84,6 +103,8 @@ module RunSh
             field_list = FieldList.new
             cmd_list.add(field_list)
           end
+        when :quote
+          field_list.add(parse_single_quote)
         when :cmd_sep, :cmd_term
           cmd_list.eoc = token_value
           return cmd_list.strip!
@@ -93,6 +114,21 @@ module RunSh
       end
 
       cmd_list.strip!
+    end
+
+    def parse_single_quote
+      qs = QuotedString.new
+
+      each_token do |token_name, token_value|
+        case (token_name)
+        when :quote
+          return qs
+        else
+          qs.add(token_value)
+        end
+      end
+
+      raise "syntax error: not terminated single-quote string: #{qs.string}"
     end
   end
 end

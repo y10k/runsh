@@ -34,6 +34,20 @@ module RunSh::Test
                      add(FieldList.new.add('bar')))
       }
     end
+
+    def test_single_quote
+      parse_script("echo 'Hello world.'") {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(QuotedString.new.add('Hello world.'))))
+      }
+
+      parse_script("echo 'foo\nbar'") {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(QuotedString.new.add("foo\nbar"))))
+      }
+    end
   end
 end
 
