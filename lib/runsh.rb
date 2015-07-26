@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'runsh/token'
 require 'runsh/version'
 
 module RunSh
