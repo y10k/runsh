@@ -6,6 +6,55 @@ require 'stringio'
 require 'test/unit'
 
 module RunSh::Test
+  class SyntaxStructTest < Test::Unit::TestCase
+    include RunSh::SyntaxStruct
+
+    def setup
+      @c = RunSh::ScriptContext.new
+      @i = RunSh::CommandInterpreter.new(@c)
+    end
+
+    def test_command_list_empty
+      assert_equal([], CommandList.new.to_cmd_exec_list(@i, @c))
+    end
+
+    def test_command_list_simple
+      assert_equal(%w[ echo HALO ],
+                   CommandList.new.
+                   add(FieldList.new.add('echo')).
+                   add(FieldList.new.add('HALO')).
+                   to_cmd_exec_list(@i, @c))
+    end
+
+    def test_command_list_single_quote
+      assert_equal([ 'echo', 'Hello world.' ],
+                   CommandList.new.
+                   add(FieldList.new.add('echo')).
+                   add(FieldList.new.add(QuotedString.new.add('Hello world.'))).
+                   to_cmd_exec_list(@i, @c))
+    end
+
+    def test_command_list_double_quote
+      assert_equal([ 'echo', 'Hello world.' ],
+                   CommandList.new.
+                   add(FieldList.new.add('echo')).
+                   add(FieldList.new.add(DoubleQuotedList.new.add('Hello world.'))).
+                   to_cmd_exec_list(@i, @c))
+    end
+
+    def test_command_list_mixed
+      assert_equal([ 'echo', 'Hello world.' ],
+                   CommandList.new.
+                   add(FieldList.new.add('echo')).
+                   add(FieldList.new.
+                       add('Hello').
+                       add(QuotedString.new.add(' ')).
+                       add(DoubleQuotedList.new.add('world')).
+                       add('.')).
+                   to_cmd_exec_list(@i, @c))
+    end
+  end
+
   class CommandParserTest < Test::Unit::TestCase
     include RunSh::SyntaxStruct
 
@@ -89,6 +138,18 @@ module RunSh::Test
         assert_parse(CommandList.new.
                      add(FieldList.new.add('echo')).
                      add(FieldList.new.add(DoubleQuotedList.new.add("foo,bar"))))
+      }
+    end
+
+    def test_mixed
+      parse_script("echo Hello\\ \"world\".") {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.
+                         add('Hello').
+                         add(QuotedString.new.add(' ')).
+                         add(DoubleQuotedList.new.add('world')).
+                         add('.')))
       }
     end
   end

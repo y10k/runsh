@@ -1,6 +1,15 @@
 # -*- coding: utf-8 -*-
 
-require 'runsh'
+module RunSh
+  module SyntaxStructString
+    refine String do
+      def to_cmd_field(cmd_intp, context)
+        self
+      end
+    end
+  end
+end
+using RunSh::SyntaxStructString
 
 module RunSh
   module SyntaxStruct
@@ -19,16 +28,26 @@ module RunSh
         end
       end
 
+      def empty?
+        @fields.empty?
+      end
+
       def add(field_list)
         @fields << field_list
         self
       end
 
       def strip!
-        while (! @fields.empty? && @fields.last.values.empty?)
+        while (! @fields.empty? && @fields.last.empty?)
           @fields.pop
         end
         self
+      end
+
+      def to_cmd_exec_list(cmd_intp, context)
+        @fields.map{|field_list|
+          field_list.to_cmd_field(cmd_intp, context)
+        }
       end
     end
 
@@ -45,9 +64,19 @@ module RunSh
         end
       end
 
+      def empty?
+        @values.empty?
+      end
+
       def add(value)
         @values << value
         self
+      end
+
+      def to_cmd_field(cmd_intp, context)
+        @values.map{|field_value|
+          field_value.to_cmd_field(cmd_intp, context)
+        }.join('')
       end
     end
 
@@ -67,6 +96,10 @@ module RunSh
       def add(string)
         @string << string
         self
+      end
+
+      def to_cmd_field(cmd_intp, context)
+        @string
       end
     end
 
@@ -94,6 +127,12 @@ module RunSh
 
         self
       end
+
+      def to_cmd_field(cmd_intp, context)
+        @values.map{|field_value|
+          field_value.to_cmd_field(cmd_intp, context)
+        }.join('')
+      end
     end
   end
 
@@ -102,6 +141,11 @@ module RunSh
 
     def initialize(token_src)
       @token_src = token_src
+      @cmd_nest = 0
+    end
+
+    def parsing_command?
+      @cmd_nest >= 1
     end
 
     def each_token
@@ -117,36 +161,42 @@ module RunSh
     private :each_token
 
     def parse_command
-      cmd_list = CommandList.new
+      @cmd_nest += 1
+      begin
+        cmd_list = CommandList.new
 
-      field_list = FieldList.new
-      cmd_list.add(field_list)
+        field_list = FieldList.new
+        cmd_list.add(field_list)
 
-      each_token do |token_name, token_value|
-        case (token_name)
-        when :space
-          unless (field_list.values.empty?) then
-            field_list = FieldList.new
-            cmd_list.add(field_list)
+        each_token do |token_name, token_value|
+          case (token_name)
+          when :space
+            unless (field_list.empty?) then
+              field_list = FieldList.new
+              cmd_list.add(field_list)
+            end
+          when :escape
+            escaped_char = token_value[1..-1]
+            if (escaped_char != "\n") then
+              field_list.add(QuotedString.new.add(escaped_char))
+            end
+          when :quote
+            field_list.add(parse_single_quote)
+          when :qquote
+            field_list.add(parse_double_quote)
+          when :cmd_sep, :cmd_term
+            cmd_list.eoc = token_value
+            return cmd_list.strip!
+          else
+            field_list.add(token_value)
           end
-        when :escape
-          escaped_char = token_value[1..-1]
-          if (escaped_char != "\n") then
-            field_list.add(QuotedString.new.add(escaped_char))
-          end
-        when :quote
-          field_list.add(parse_single_quote)
-        when :qquote
-          field_list.add(parse_double_quote)
-        when :cmd_sep, :cmd_term
-          cmd_list.eoc = token_value
-          return cmd_list.strip!
-        else
-          field_list.add(token_value)
         end
-      end
 
-      cmd_list.strip!
+        cmd_list.strip!
+        cmd_list unless cmd_list.empty?
+      ensure
+        @cmd_nest -= 1
+      end
     end
 
     def parse_single_quote
