@@ -148,8 +148,7 @@ module RunSh
     def each_token
       begin
         loop do
-          token_name, token_value = @token_src.next
-          yield(token_name, token_value)
+          yield(@token_src.next)
         end
       rescue StopIteration
         # end of loop
@@ -165,15 +164,15 @@ module RunSh
         field_list = FieldList.new
         cmd_list.add(field_list)
 
-        each_token do |token_name, token_value|
-          case (token_name)
+        each_token do |token|
+          case (token.name)
           when :space
             unless (field_list.empty?) then
               field_list = FieldList.new
               cmd_list.add(field_list)
             end
           when :escape
-            escaped_char = token_value[1..-1]
+            escaped_char = token.value[1..-1]
             if (escaped_char != "\n") then
               field_list.add(QuotedString.new.add(escaped_char))
             end
@@ -182,10 +181,10 @@ module RunSh
           when :qquote
             field_list.add(parse_double_quote)
           when :cmd_sep, :cmd_term
-            cmd_list.eoc = token_value
+            cmd_list.eoc = token.value
             return cmd_list.strip!
           else
-            field_list.add(token_value)
+            field_list.add(token.value)
           end
         end
 
@@ -199,12 +198,12 @@ module RunSh
     def parse_single_quote
       qs = QuotedString.new
 
-      each_token do |token_name, token_value|
-        case (token_name)
+      each_token do |token|
+        case (token.name)
         when :quote
           return qs
         else
-          qs.add(token_value)
+          qs.add(token.value)
         end
       end
 
@@ -214,17 +213,17 @@ module RunSh
     def parse_double_quote
       qq_list = DoubleQuotedList.new
 
-      each_token do |token_name, token_value|
-        case (token_name)
+      each_token do |token|
+        case (token.name)
         when :qquote
           return qq_list
         when :escape
-          escaped_char = token_value[1..-1]
+          escaped_char = token.value[1..-1]
           if (escaped_char != "\n") then
             qq_list.add(escaped_char)
           end
         else
-          qq_list.add(token_value)
+          qq_list.add(token.value)
         end
       end
 

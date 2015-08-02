@@ -4,7 +4,9 @@ require 'strscan'
 
 module RunSh
   class TokenScanner
+    Token = Struct.new(:name, :value)
     TokenNamePatternPair = Struct.new(:name, :pattern)
+
     TOKEN_PATTERN_LIST = []
 
     def self.def_token(name, pattern)
@@ -30,8 +32,8 @@ module RunSh
         until (strscan.eos?)
           catch (:found_token) {
             for token_pair in TOKEN_PATTERN_LIST
-              if (token = strscan.scan(token_pair.pattern)) then
-                yield(token_pair.name, token)
+              if (token_value = strscan.scan(token_pair.pattern)) then
+                yield(Token.new(token_pair.name, token_value))
                 throw(:found_token)
               end
             end

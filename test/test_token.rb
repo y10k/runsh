@@ -9,7 +9,8 @@ module RunSh::Test
   class TokenScannerTest < Test::Unit::TestCase
     def assert_token_scan(expected_token_list, script_text)
       token_scanner = RunSh::TokenScanner.new(StringIO.new(script_text))
-      assert_equal(expected_token_list, token_scanner.scan_token.to_a)
+      assert_equal(expected_token_list,
+                   token_scanner.scan_token.map{|token| [ token.name, token.value ] })
     end
 
     def test_simple_command
