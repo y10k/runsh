@@ -84,6 +84,18 @@ module RunSh::Test
       }
     end
 
+    def test_comment
+      parse_script("# here is comment: ${('\"`;&|<>\n") {
+        assert_parse(CommandList.new(eoc: "\n"))
+      }
+
+      parse_script("echo HALO # here is comment: : ${('\"`;&|<>") {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add('HALO')))
+      }
+    end
+
     def test_escape
       parse_script("echo Hello\\ world.") {
         assert_parse(CommandList.new.
@@ -99,6 +111,14 @@ module RunSh::Test
                      add(FieldList.new.add('echo')).
                      add(FieldList.new.add('HALO')))
       }
+
+      parse_script("echo \\#foo") {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.
+                         add(QuotedString.new.add('#')).
+                         add('foo')))
+      }
     end
 
     def test_single_quote
@@ -112,6 +132,12 @@ module RunSh::Test
         assert_parse(CommandList.new.
                      add(FieldList.new.add('echo')).
                      add(FieldList.new.add(QuotedString.new.add("foo\nbar"))))
+      }
+
+      parse_script("echo '#foo'") {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(QuotedString.new.add('#foo'))))
       }
     end
 
@@ -138,6 +164,12 @@ module RunSh::Test
         assert_parse(CommandList.new.
                      add(FieldList.new.add('echo')).
                      add(FieldList.new.add(DoubleQuotedList.new.add("foo,bar"))))
+      }
+
+      parse_script(%Q'echo "#foo"') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(DoubleQuotedList.new.add('#foo'))))
       }
     end
 

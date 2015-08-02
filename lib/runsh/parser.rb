@@ -138,6 +138,7 @@ module RunSh
 
     def initialize(token_src)
       @token_src = token_src
+      @token_push_back_list = []
       @cmd_nest = 0
     end
 
@@ -148,13 +149,23 @@ module RunSh
     def each_token
       begin
         loop do
-          yield(@token_src.next)
+          if (@token_push_back_list.empty?) then
+            yield(@token_src.next)
+          else
+            yield(@token_push_back_list.shift)
+          end
         end
       rescue StopIteration
         # end of loop
       end
     end
     private :each_token
+
+    def push_back(token)
+      @token_push_back_list.push(token)
+      nil
+    end
+    private :push_back
 
     def parse_command
       @cmd_nest += 1
@@ -183,6 +194,12 @@ module RunSh
           when :cmd_sep, :cmd_term
             cmd_list.eoc = token.value
             return cmd_list.strip!
+          when :word
+            if (token.value =~ /\A#/) then
+              parse_comment
+            else
+              field_list.add(token.value)
+            end
           else
             field_list.add(token.value)
           end
@@ -192,6 +209,18 @@ module RunSh
         cmd_list unless cmd_list.empty?
       ensure
         @cmd_nest -= 1
+      end
+    end
+
+    def parse_comment
+      each_token do |token|
+        case (token.name)
+        when :cmd_term
+          push_back(token)
+          return
+        else
+          # skip comment
+        end
       end
     end
 
