@@ -9,6 +9,8 @@ module RunSh
       @command_status = 0
       @env = env
       @var = {}
+      @IFS_src = nil
+      @IFS_re = nil
     end
 
     attr_accessor :program_name
@@ -65,6 +67,14 @@ module RunSh
       value = @var.delete(name) || ''
       @env[name] = value
       self
+    end
+
+    def IFS_regexp
+      ifs = get_var('IFS') || " \t\n"
+      if (@IFS_src != ifs) then
+        @IFS_re = Regexp.new(ifs.chars.map{|c| Regexp.quote(c) }.join('|'))
+      end
+      @IFS_re
     end
   end
 
