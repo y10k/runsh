@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-require 'runsh'
 require 'strscan'
 
 module RunSh
