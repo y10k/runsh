@@ -14,44 +14,46 @@ module RunSh::Test
       @i = RunSh::CommandInterpreter.new(@c)
     end
 
+    def assert_cmd_list(expected_list, cmd_list)
+      assert_equal(expected_list,
+                   RunSh::SyntaxStruct.build_command_list(cmd_list, @c, @i))
+    end
+    private :assert_cmd_list
+
     def test_command_list_empty
-      assert_equal([], CommandList.new.to_cmd_exec_list(@i, @c))
+      assert_cmd_list([], CommandList.new)
     end
 
     def test_command_list_simple
-      assert_equal(%w[ echo HALO ],
-                   CommandList.new.
-                   add(FieldList.new.add('echo')).
-                   add(FieldList.new.add('HALO')).
-                   to_cmd_exec_list(@i, @c))
+      assert_cmd_list(%w[ echo HALO ],
+                      CommandList.new.
+                      add(FieldList.new.add('echo')).
+                      add(FieldList.new.add('HALO')))
     end
 
     def test_command_list_single_quote
-      assert_equal([ 'echo', 'Hello world.' ],
-                   CommandList.new.
-                   add(FieldList.new.add('echo')).
-                   add(FieldList.new.add(QuotedString.new.add('Hello world.'))).
-                   to_cmd_exec_list(@i, @c))
+      assert_cmd_list([ 'echo', 'Hello world.' ],
+                      CommandList.new.
+                      add(FieldList.new.add('echo')).
+                      add(FieldList.new.add(QuotedString.new.add('Hello world.'))))
     end
 
     def test_command_list_double_quote
-      assert_equal([ 'echo', 'Hello world.' ],
-                   CommandList.new.
-                   add(FieldList.new.add('echo')).
-                   add(FieldList.new.add(DoubleQuotedList.new.add('Hello world.'))).
-                   to_cmd_exec_list(@i, @c))
+      assert_cmd_list([ 'echo', 'Hello world.' ],
+                      CommandList.new.
+                      add(FieldList.new.add('echo')).
+                      add(FieldList.new.add(DoubleQuotedList.new.add('Hello world.'))))
     end
 
     def test_command_list_mixed
-      assert_equal([ 'echo', 'Hello world.' ],
-                   CommandList.new.
-                   add(FieldList.new.add('echo')).
-                   add(FieldList.new.
-                       add('Hello').
-                       add(QuotedString.new.add(' ')).
-                       add(DoubleQuotedList.new.add('world')).
-                       add('.')).
-                   to_cmd_exec_list(@i, @c))
+      assert_cmd_list([ 'echo', 'Hello world.' ],
+                      CommandList.new.
+                      add(FieldList.new.add('echo')).
+                      add(FieldList.new.
+                          add('Hello').
+                          add(QuotedString.new.add(' ')).
+                          add(DoubleQuotedList.new.add('world')).
+                          add('.')))
     end
   end
 

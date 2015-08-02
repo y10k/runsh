@@ -4,8 +4,8 @@ module RunSh
   module SyntaxStruct
     using Module.new{
       refine String do
-        def to_cmd_field(cmd_intp, context)
-          self
+        def accept(visitor)
+          visitor.visit_s(self)
         end
       end
     }
@@ -41,10 +41,8 @@ module RunSh
         self
       end
 
-      def to_cmd_exec_list(cmd_intp, context)
-        @fields.map{|field_list|
-          field_list.to_cmd_field(cmd_intp, context)
-        }
+      def accept(visitor)
+        visitor.visit_cmd_list(self, @fields)
       end
     end
 
@@ -70,10 +68,8 @@ module RunSh
         self
       end
 
-      def to_cmd_field(cmd_intp, context)
-        @values.map{|field_value|
-          field_value.to_cmd_field(cmd_intp, context)
-        }.join('')
+      def accept(visitor)
+        visitor.visit_field_list(self, @values)
       end
     end
 
@@ -95,8 +91,8 @@ module RunSh
         self
       end
 
-      def to_cmd_field(cmd_intp, context)
-        @string
+      def accept(visitor)
+        visitor.visit_qs(self, @string)
       end
     end
 
@@ -125,12 +121,42 @@ module RunSh
         self
       end
 
-      def to_cmd_field(cmd_intp, context)
-        @values.map{|field_value|
-          field_value.to_cmd_field(cmd_intp, context)
-        }.join('')
+      def accept(visitor)
+        visitor.visit_qq_list(self, @values)
       end
     end
+
+    class CommandListVisitor
+      def initialize(context, cmd_intp)
+        @c = context
+        @i = cmd_intp
+      end
+
+      def visit_cmd_list(cmd_list, fields)
+        fields.map{|field_list| field_list.accept(self) }
+      end
+
+      def visit_field_list(field_list, values)
+        values.map{|value| value.accept(self) }.join('')
+      end
+
+      def visit_qs(qs, string)
+        string
+      end
+
+      def visit_qq_list(qq_list, values)
+        values.map{|value| value.accept(self) }.join('')
+      end
+
+      def visit_s(string)
+        string
+      end
+    end
+
+    def build_command_list(cmd_list, context, cmd_intp)
+      cmd_list.accept(CommandListVisitor.new(context, cmd_intp))
+    end
+    module_function :build_command_list
   end
 
   class CommandParser
