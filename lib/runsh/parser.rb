@@ -1,18 +1,15 @@
 # -*- coding: utf-8 -*-
 
 module RunSh
-  module SyntaxStructString
-    refine String do
-      def to_cmd_field(cmd_intp, context)
-        self
-      end
-    end
-  end
-end
-using RunSh::SyntaxStructString
-
-module RunSh
   module SyntaxStruct
+    using Module.new{
+      refine String do
+        def to_cmd_field(cmd_intp, context)
+          self
+        end
+      end
+    }
+
     class CommandList
       def initialize(eoc: nil)
         @fields = []
