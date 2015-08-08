@@ -85,7 +85,7 @@ module RunSh
 
     def run(cmd_list)
       unless (cmd_list.empty?) then
-        cmd_exec_list = SyntaxStruct.build_command_list(cmd_list, @c, self)
+        cmd_exec_list = SyntaxStruct.expand(cmd_list, @c, self)
         system(*cmd_exec_list)
         $?.exitstatus
       end

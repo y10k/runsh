@@ -153,10 +153,10 @@ module RunSh
       end
     end
 
-    def build_command_list(cmd_list, context, cmd_intp)
-      cmd_list.accept(CommandListVisitor.new(context, cmd_intp))
+    def expand(syntax_tree, context, cmd_intp)
+      syntax_tree.accept(CommandListVisitor.new(context, cmd_intp))
     end
-    module_function :build_command_list
+    module_function :expand
   end
 
   class CommandParser

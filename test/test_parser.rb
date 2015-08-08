@@ -14,46 +14,46 @@ module RunSh::Test
       @i = RunSh::CommandInterpreter.new(@c)
     end
 
-    def assert_cmd_list(expected_list, cmd_list)
-      assert_equal(expected_list,
-                   RunSh::SyntaxStruct.build_command_list(cmd_list, @c, @i))
+    def assert_syntax(expected_result, cmd_syntax)
+      assert_equal(expected_result,
+                   RunSh::SyntaxStruct.expand(cmd_syntax, @c, @i))
     end
-    private :assert_cmd_list
+    private :assert_syntax
 
     def test_command_list_empty
-      assert_cmd_list([], CommandList.new)
+      assert_syntax([], CommandList.new)
     end
 
     def test_command_list_simple
-      assert_cmd_list(%w[ echo HALO ],
-                      CommandList.new.
-                      add(FieldList.new.add('echo')).
-                      add(FieldList.new.add('HALO')))
+      assert_syntax(%w[ echo HALO ],
+                    CommandList.new.
+                    add(FieldList.new.add('echo')).
+                    add(FieldList.new.add('HALO')))
     end
 
     def test_command_list_single_quote
-      assert_cmd_list([ 'echo', 'Hello world.' ],
-                      CommandList.new.
-                      add(FieldList.new.add('echo')).
-                      add(FieldList.new.add(QuotedString.new.add('Hello world.'))))
+      assert_syntax([ 'echo', 'Hello world.' ],
+                    CommandList.new.
+                    add(FieldList.new.add('echo')).
+                    add(FieldList.new.add(QuotedString.new.add('Hello world.'))))
     end
 
     def test_command_list_double_quote
-      assert_cmd_list([ 'echo', 'Hello world.' ],
-                      CommandList.new.
-                      add(FieldList.new.add('echo')).
-                      add(FieldList.new.add(DoubleQuotedList.new.add('Hello world.'))))
+      assert_syntax([ 'echo', 'Hello world.' ],
+                    CommandList.new.
+                    add(FieldList.new.add('echo')).
+                    add(FieldList.new.add(DoubleQuotedList.new.add('Hello world.'))))
     end
 
     def test_command_list_mixed
-      assert_cmd_list([ 'echo', 'Hello world.' ],
-                      CommandList.new.
-                      add(FieldList.new.add('echo')).
-                      add(FieldList.new.
-                          add('Hello').
-                          add(QuotedString.new.add(' ')).
-                          add(DoubleQuotedList.new.add('world')).
-                          add('.')))
+      assert_syntax([ 'echo', 'Hello world.' ],
+                    CommandList.new.
+                    add(FieldList.new.add('echo')).
+                    add(FieldList.new.
+                        add('Hello').
+                        add(QuotedString.new.add(' ')).
+                        add(DoubleQuotedList.new.add('world')).
+                        add('.')))
     end
   end
 
