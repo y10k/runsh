@@ -25,10 +25,11 @@ module RunSh
 
       exit_status = 0
       begin
+        print 'runsh$ ' if input.tty?
         loop do
-          print 'runsh$ ' if input.tty?
           cmd_list = cmd_p.parse_command or break
           exit_status = cmd_i.run(cmd_list) || exit_status
+          print 'runsh$ ' if (input.tty? && cmd_list.eoc == "\n")
         end
       ensure
         input.close
