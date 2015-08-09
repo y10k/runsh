@@ -19,7 +19,15 @@ module RunSh
     def_token :escape, /\\./m
     def_token :cmd_sep, /;/
     def_token :cmd_term, /\n/
-    def_token :word, /[^ \t\\'";\n]+/
+
+    special_chars = [
+      ' ', "\t",                # space
+      "'", '"',                 # quote/qquote
+      "\\",                     # escape
+      ';', "\n"                 # command separator/terminator
+    ]
+
+    def_token :word, /[^#{special_chars.map{|c| Regexp.quote(c) }.join('')}]+/
 
     def initialize(input)
       @input = input
