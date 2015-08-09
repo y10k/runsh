@@ -109,7 +109,7 @@ module RunSh
       unless (cmd_list.empty?) then
         cmd_exec_list = SyntaxStruct.expand(cmd_list, @c, self)
         system(*cmd_exec_list)
-        $?.exitstatus
+        @c.command_status = $?.exitstatus
       end
     end
   end

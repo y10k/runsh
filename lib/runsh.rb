@@ -23,19 +23,18 @@ module RunSh
       cmd_p = CommandParser.new(ts.scan_token)
       cmd_i = CommandInterpreter.new(@c)
 
-      exit_status = 0
       begin
         print 'runsh$ ' if input.tty?
         loop do
           cmd_list = cmd_p.parse_command or break
-          exit_status = cmd_i.run(cmd_list) || exit_status
+          cmd_i.run(cmd_list)
           print 'runsh$ ' if (input.tty? && cmd_list.eoc == "\n")
         end
       ensure
         input.close
       end
 
-      exit(exit_status)
+      exit($?.exitstatus)
     end
   end
 end
