@@ -64,7 +64,14 @@ module RunSh
       end
 
       def add(value)
-        @values << value
+        if ((value.is_a? String) &&
+            (@values.length > 0) && (@values.last.is_a? String))
+        then
+          @values.last << value
+        else
+          @values << value
+        end
+
         self
       end
 
@@ -320,6 +327,10 @@ module RunSh
 
         each_token do |token|
           case (token.name)
+          when :param
+            param_expan = ParameterExansion.new
+            param_expan.name = token.value[1..-1]
+            field_list.add(param_expan)
           when :space
             unless (field_list.empty?) then
               field_list = FieldList.new
@@ -389,6 +400,10 @@ module RunSh
         case (token.name)
         when :qquote
           return qq_list
+        when :param
+          param_expan = ParameterExansion.new
+          param_expan.name = token.value[1..-1]
+          qq_list.add(param_expan)
         when :escape
           escaped_char = token.value[1..-1]
           if (escaped_char != "\n") then

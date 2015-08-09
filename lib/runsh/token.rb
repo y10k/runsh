@@ -13,6 +13,9 @@ module RunSh
       TOKEN_PATTERN_LIST << TokenNamePatternPair.new(name, pattern)
     end
 
+    def_token :param, /\$ (?: \# | @ | \* | \? | - | \$ | ! | [0-9] | [_A-Za-z][_A-Za-z0-9]* )/x
+    def_token :word, /\$/       # unmatched parameter expansion
+
     def_token :space, /[ \t]+/
     def_token :quote, /'/
     def_token :qquote, /"/
@@ -21,6 +24,7 @@ module RunSh
     def_token :cmd_term, /\n/
 
     special_chars = [
+      '$',                      # parameter expansion
       ' ', "\t",                # space
       "'", '"',                 # quote/qquote
       "\\",                     # escape
