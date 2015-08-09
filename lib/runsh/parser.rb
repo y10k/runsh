@@ -126,6 +126,48 @@ module RunSh
       end
     end
 
+    class ParameterExansion
+      def initialize(name: nil, separator: nil)
+        @name = name
+        @separator = separator
+        @default_values = []
+      end
+
+      attr_accessor :name
+      attr_accessor :separator
+      attr_reader :default_values
+
+      def ==(other)
+        if (other.is_a? ParameterExansion) then
+          @name == other.name &&
+            @separator == other.separator &&
+            @default_values == other.default_values
+        end
+      end
+
+      def add(value)
+        if ((value.is_a? String) &&
+            (@default_values.length > 0) && (@default_values.last.is_a? String))
+        then
+          @default_values.last << value
+        else
+          @default_values << value
+        end
+
+        self
+      end
+
+      def accept(visitor)
+        visitor.visit_param_expan(self)
+      end
+
+      def accept_default_values(visitor)
+        unless (@default_values.empty?) then
+          @default_values.map{|value| value.accept(visitor) }.join('')
+        end
+      end
+    end
+
     class CommandListVisitor
       def initialize(context, cmd_intp)
         @c = context
@@ -150,6 +192,81 @@ module RunSh
 
       def visit_s(string)
         string
+      end
+
+      def visit_param_expan(parameter_expansion)
+        case (parameter_expansion.name)
+        when /\A#./
+          plain_param_expan = ParameterExansion.new
+          plain_param_expan.name = parameter_expansion.name[1..-1]
+          value_string = plain_param_expan.accept(self)
+          if (value_string) then
+            value = value_string.length.to_s
+          else
+            value = '0'
+          end
+        else
+          value = @c.get_var(parameter_expansion.name)
+        end
+
+        if (parameter_expansion.separator) then
+          case (parameter_expansion.separator)
+          when ':-'
+            if (value.nil? || value.empty?) then
+              value = parameter_expansion.accept_default_values(self)
+            end
+          when '-'
+            if (value.nil?) then
+              value = parameter_expansion.accept_default_values(self)
+            end
+          when ':='
+            if (value.nil? || value.empty?) then
+              value = parameter_expansion.accept_default_values(self)
+              @c.put_var(parameter_expansion.name, value) if value
+            end
+          when '='
+            if (value.nil?) then
+              value = parameter_expansion.accept_default_values(self)
+              @c.put_var(parameter_expansion.name, value) if value
+            end
+          when ':?'
+            if (value.nil? || value.empty?) then
+              if (msg = parameter_expansion.accept_default_values(self)) then
+                raise "undefined parameter: #{parameter_expansion.name}: #{msg}"
+              else
+                raise "undefined parameter: #{parameter_expansion.name}"
+              end
+            end
+          when '?'
+            if (value.nil?) then
+              if (msg = parameter_expansion.accept_default_values(self)) then
+                raise "undefined parameter: #{parameter_expansion.name}: #{msg}"
+              else
+                raise "undefined parameter: #{parameter_expansion.name}"
+              end
+            end
+          when ':+'
+            if (! value.nil? && ! value.empty?) then
+              value = parameter_expansion.accept_default_values(self)
+            end
+          when '+'
+            if (! value.nil?) then
+              value = parameter_expansion.accept_default_values(self)
+            end
+          when '%%'
+            # not implemented.
+          when '%'
+            # not implemented.
+          when '##'
+            # not implemented.
+          when '#'
+            # not implemented.
+          else
+            raise "syntax error: invalid parameter expansion separator: #{@separator}"
+          end
+        end
+
+        value || ''
       end
     end
 

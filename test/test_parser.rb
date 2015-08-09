@@ -20,6 +20,19 @@ module RunSh::Test
     end
     private :assert_syntax
 
+    def assert_syntax_error(expected_error_type, expected_error_message, cmd_syntax)
+      begin
+        RunSh::SyntaxStruct.expand(cmd_syntax, @c, @i)
+      rescue
+        assert_instance_of(expected_error_type, $!)
+        assert(($!.message.end_with? expected_error_message),
+               "expected <#{expected_error_message}> but was <#{$!.message}>.")
+        return
+      end
+      flunk('no error!')
+    end
+    private :assert_syntax
+
     def test_command_list_empty
       assert_syntax([], CommandList.new)
     end
@@ -54,6 +67,155 @@ module RunSh::Test
                         add(QuotedString.new.add(' ')).
                         add(DoubleQuotedList.new.add('world')).
                         add('.')))
+    end
+
+    def test_parameter_expansion_plain_name
+      @c.put_var('foo', 'HALO')
+      assert_syntax('HALO', ParameterExansion.new(name: 'foo'))
+
+      @c.unset_var('foo')
+      assert_syntax('', ParameterExansion.new(name: 'foo'))
+    end
+
+    def test_parameter_expansion_program_name
+      @c.program_name = 'foo'
+      assert_syntax('foo', ParameterExansion.new(name: '0'))
+    end
+
+    def test_parameter_expansion_args
+      assert_syntax('0', ParameterExansion.new(name: '#'))
+      assert_syntax('', ParameterExansion.new(name: '@'))
+      assert_syntax('', ParameterExansion.new(name: '*'))
+      assert_syntax('', ParameterExansion.new(name: '1'))
+      assert_syntax('', ParameterExansion.new(name: '2'))
+      assert_syntax('', ParameterExansion.new(name: '3'))
+
+      @c.args = %w[ foo bar baz ]
+      assert_syntax('3', ParameterExansion.new(name: '#'))
+      assert_syntax('foo bar baz', ParameterExansion.new(name: '@'))
+      assert_syntax('foo bar baz', ParameterExansion.new(name: '*'))
+      assert_syntax('foo', ParameterExansion.new(name: '1'))
+      assert_syntax('bar', ParameterExansion.new(name: '2'))
+      assert_syntax('baz', ParameterExansion.new(name: '3'))
+    end
+
+    def test_parameter_expansion_pid
+      @c.pid = 1234
+      assert_syntax('1234', ParameterExansion.new(name: '$'))
+    end
+
+    def test_parameter_expansion_command_status
+      assert_syntax('0', ParameterExansion.new(name: '?'))
+
+      @c.command_status = 1
+      assert_syntax('1', ParameterExansion.new(name: '?'))
+    end
+
+    def test_parameter_expansion_string_length
+      assert_syntax('0', ParameterExansion.new(name: '#foo'))
+
+      @c.put_var('foo', 'Hello world.')
+      assert_syntax('12', ParameterExansion.new(name: '#foo'))
+    end
+
+    def test_parameter_expansion_use_default_value
+      assert_syntax('HALO', ParameterExansion.new(name: 'foo', separator: ':-').add('HALO'))
+      assert_nil(@c.get_var('foo'))
+
+      @c.put_var('foo', '')
+      assert_syntax('HALO', ParameterExansion.new(name: 'foo', separator: ':-').add('HALO'))
+      assert_equal('', @c.get_var('foo'))
+
+      @c.put_var('foo', 'Hello world.')
+      assert_syntax('Hello world.', ParameterExansion.new(name: 'foo', separator: ':-').add('HALO'))
+      assert_equal('Hello world.', @c.get_var('foo'))
+
+      assert_syntax('HALO', ParameterExansion.new(name: 'bar', separator: '-').add('HALO'))
+      assert_nil(@c.get_var('bar'))
+
+      @c.put_var('bar', '')
+      assert_syntax('', ParameterExansion.new(name: 'bar', separator: '-').add('HALO'))
+      assert_equal('', @c.get_var('bar'))
+    end
+
+    def test_parameter_expansion_assign_default_value
+      assert_syntax('HALO', ParameterExansion.new(name: 'foo', separator: ':=').add('HALO'))
+      assert_equal('HALO', @c.get_var('foo'))
+
+      @c.put_var('foo', '')
+      assert_syntax('HALO', ParameterExansion.new(name: 'foo', separator: ':=').add('HALO'))
+      assert_equal('HALO', @c.get_var('foo'))
+
+      @c.put_var('foo', 'Hello world.')
+      assert_syntax('Hello world.', ParameterExansion.new(name: 'foo', separator: ':=').add('HALO'))
+      assert_equal('Hello world.', @c.get_var('foo'))
+
+      assert_syntax('HALO', ParameterExansion.new(name: 'bar', separator: '=').add('HALO'))
+      assert_equal('HALO', @c.get_var('bar'))
+
+      @c.put_var('bar', '')
+      assert_syntax('', ParameterExansion.new(name: 'bar', separator: '=').add('HALO'))
+      assert_equal('', @c.get_var('bar'))
+    end
+
+    def test_parameter_expansion_indicate_error
+      assert_syntax_error(RuntimeError, 'foo',
+                          ParameterExansion.new(name: 'foo', separator: ':?'))
+      assert_syntax_error(RuntimeError, 'foo: HALO',
+                          ParameterExansion.new(name: 'foo', separator: ':?').add('HALO'))
+      assert_nil(@c.get_var('foo'))
+
+      @c.put_var('foo', '')
+      assert_syntax_error(RuntimeError, 'foo',
+                          ParameterExansion.new(name: 'foo', separator: ':?'))
+      assert_syntax_error(RuntimeError, 'foo: HALO',
+                          ParameterExansion.new(name: 'foo', separator: ':?').add('HALO'))
+      assert_equal('', @c.get_var('foo'))
+
+      @c.put_var('foo', 'Hello world.')
+      assert_syntax('Hello world.', ParameterExansion.new(name: 'foo', separator: ':?'))
+      assert_syntax('Hello world.', ParameterExansion.new(name: 'foo', separator: ':?').add('HALO'))
+      assert_equal('Hello world.', @c.get_var('foo'))
+
+      assert_syntax_error(RuntimeError, 'bar',
+                          ParameterExansion.new(name: 'bar', separator: '?'))
+      assert_syntax_error(RuntimeError, 'bar: HALO',
+                          ParameterExansion.new(name: 'bar', separator: '?').add('HALO'))
+      assert_nil(@c.get_var('bar'))
+
+      @c.put_var('bar', '')
+      assert_syntax('Hello world.', ParameterExansion.new(name: 'foo', separator: '?'))
+      assert_syntax('Hello world.', ParameterExansion.new(name: 'foo', separator: '?').add('HALO'))
+      assert_equal('', @c.get_var('bar'))
+    end
+
+    def test_parameter_expansion_use_alternative_value
+      assert_syntax('', ParameterExansion.new(name: 'foo', separator: ':+').add('HALO'))
+      assert_nil(@c.get_var('foo'))
+
+      @c.put_var('foo', '')
+      assert_syntax('', ParameterExansion.new(name: 'foo', separator: ':+').add('HALO'))
+      assert_equal('', @c.get_var('foo'))
+
+      @c.put_var('foo', 'Hello world.')
+      assert_syntax('HALO', ParameterExansion.new(name: 'foo', separator: ':+').add('HALO'))
+      assert_equal('Hello world.', @c.get_var('foo'))
+
+      assert_syntax('', ParameterExansion.new(name: 'bar', separator: '+').add('HALO'))
+      assert_nil(@c.get_var('bar'))
+
+      @c.put_var('bar', '')
+      assert_syntax('HALO', ParameterExansion.new(name: 'bar', separator: '+').add('HALO'))
+      assert_equal('', @c.get_var('bar'))
+    end
+
+    def test_parameter_expansion_nested_parameter_expansion
+      @c.put_var('foo', 'Hello world.')
+      assert_syntax('[Hello world.]',
+                    ParameterExansion.new(name: 'bar', separator: ':-').
+                    add('[').
+                    add(ParameterExansion.new(name: 'foo')).
+                    add(']'))
     end
   end
 
