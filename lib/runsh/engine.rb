@@ -21,34 +21,56 @@ module RunSh
     def get_var(name)
       case (name)
       when '#'
-        return @args.length.to_s
+        @args.length.to_s
+      when '@', '*'
+        @args.join(' ') unless @args.empty?
       when '?'
-        return @command_status.to_s
+        @command_status.to_s
       when '-'
-        return nil              # not implemented.
+        nil                     # not implemented.
       when '$'
-        return @pid.to_s
+        @pid.to_s
       when '!'
-        return nil              # not implemented.
+        nil                     # not implemented.
       when '0'
-        return @program_name
+        @program_name
       when /\A[1-9]\d*\z/
-        return @args[name.to_i - 1]
-      end
-
-      if (@env.key? name) then
-        @env[name]
-      elsif (@var.key? name) then
-        @var[name]
+        @args[name.to_i - 1]
+      when /\A[_A-Za-z][_A-Za-z0-9]*\z/
+        if (@env.key? name) then
+          @env[name]
+        elsif (@var.key? name) then
+          @var[name]
+        end
+      else
+        raise "syntax error: invalid parameter name to get: #{name}"
       end
     end
 
     def put_var(name, value)
-      if (@env.key? name) then
-        @env[name] = value
+      case (name)
+      when /\A[_A-Za-z][_A-Za-z0-9]*\z/
+        if (@env.key? name) then
+          @env[name] = value
+        else
+          @var[name] = value
+        end
       else
-        @var[name] = value
+        raise "syntax error: invalid parameter name to put: #{name}"
       end
+
+      self
+    end
+
+    def unset_var(name)
+      case (name)
+      when /\A[_A-Za-z][_A-Za-z0-9]*\z/
+        @var.delete(name)
+        @env.delete(name)
+      else
+        raise "syntax error: invalid parameter name to put: #{name}"
+      end
+
       self
     end
 
