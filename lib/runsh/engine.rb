@@ -32,7 +32,7 @@ module RunSh
         return nil              # not implemented.
       when '0'
         return @program_name
-      when /\A[1-9]\z/
+      when /\A[1-9]\d*\z/
         return @args[name.to_i - 1]
       end
 
