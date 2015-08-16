@@ -312,6 +312,19 @@ module RunSh
     end
     private :push_back
 
+    def parse_single_token_escape(token_value)
+      escaped_char = token_value[1..-1]
+      if (escaped_char != "\n") then
+        yield(escaped_char)
+      end
+    end
+    private :parse_single_token_escape
+
+    def parse_single_token_parameter_expansion(token_value)
+      ParameterExansion.new(name: token_value[1..-1])
+    end
+    private :parse_single_token_parameter_expansion
+
     def parse_command
       cmd_list = CommandList.new
 
@@ -321,19 +334,16 @@ module RunSh
       each_token do |token|
         case (token.name)
         when :param
-          param_expan = ParameterExansion.new
-          param_expan.name = token.value[1..-1]
-          field_list.add(param_expan)
+          field_list.add(parse_single_token_parameter_expansion(token.value))
         when :space
           unless (field_list.empty?) then
             field_list = FieldList.new
             cmd_list.add(field_list)
           end
         when :escape
-          escaped_char = token.value[1..-1]
-          if (escaped_char != "\n") then
+          parse_single_token_escape(token.value) {|escaped_char|
             field_list.add(QuotedString.new.add(escaped_char))
-          end
+          }
         when :quote
           field_list.add(parse_single_quote)
         when :qquote
@@ -395,10 +405,9 @@ module RunSh
           param_expan.name = token.value[1..-1]
           qq_list.add(param_expan)
         when :escape
-          escaped_char = token.value[1..-1]
-          if (escaped_char != "\n") then
+          parse_single_token_escape(token.value) {|escaped_char|
             qq_list.add(escaped_char)
-          end
+          }
         else
           qq_list.add(token.value)
         end
