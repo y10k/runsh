@@ -289,11 +289,6 @@ module RunSh
     def initialize(token_src)
       @token_src = token_src
       @token_push_back_list = []
-      @cmd_nest = 0
-    end
-
-    def parsing_command?
-      @cmd_nest >= 1
     end
 
     def each_token
@@ -318,52 +313,47 @@ module RunSh
     private :push_back
 
     def parse_command
-      @cmd_nest += 1
-      begin
-        cmd_list = CommandList.new
+      cmd_list = CommandList.new
 
-        field_list = FieldList.new
-        cmd_list.add(field_list)
+      field_list = FieldList.new
+      cmd_list.add(field_list)
 
-        each_token do |token|
-          case (token.name)
-          when :param
-            param_expan = ParameterExansion.new
-            param_expan.name = token.value[1..-1]
-            field_list.add(param_expan)
-          when :space
-            unless (field_list.empty?) then
-              field_list = FieldList.new
-              cmd_list.add(field_list)
-            end
-          when :escape
-            escaped_char = token.value[1..-1]
-            if (escaped_char != "\n") then
-              field_list.add(QuotedString.new.add(escaped_char))
-            end
-          when :quote
-            field_list.add(parse_single_quote)
-          when :qquote
-            field_list.add(parse_double_quote)
-          when :cmd_sep, :cmd_term
-            cmd_list.eoc = token.value
-            return cmd_list.strip!
-          when :word
-            if (token.value =~ /\A#/) then
-              parse_comment
-            else
-              field_list.add(token.value)
-            end
+      each_token do |token|
+        case (token.name)
+        when :param
+          param_expan = ParameterExansion.new
+          param_expan.name = token.value[1..-1]
+          field_list.add(param_expan)
+        when :space
+          unless (field_list.empty?) then
+            field_list = FieldList.new
+            cmd_list.add(field_list)
+          end
+        when :escape
+          escaped_char = token.value[1..-1]
+          if (escaped_char != "\n") then
+            field_list.add(QuotedString.new.add(escaped_char))
+          end
+        when :quote
+          field_list.add(parse_single_quote)
+        when :qquote
+          field_list.add(parse_double_quote)
+        when :cmd_sep, :cmd_term
+          cmd_list.eoc = token.value
+          return cmd_list.strip!
+        when :word
+          if (token.value =~ /\A#/) then
+            parse_comment
           else
             field_list.add(token.value)
           end
+        else
+          field_list.add(token.value)
         end
-
-        cmd_list.strip!
-        cmd_list unless cmd_list.empty?
-      ensure
-        @cmd_nest -= 1
       end
+
+      cmd_list.strip!
+      cmd_list unless cmd_list.empty?
     end
 
     def parse_comment
