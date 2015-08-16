@@ -335,6 +335,8 @@ module RunSh
         case (token.name)
         when :param
           field_list.add(parse_single_token_parameter_expansion(token.value))
+        when :param_begin
+          field_list.add(parse_parameter_expansion)
         when :space
           unless (field_list.empty?) then
             field_list = FieldList.new
@@ -404,6 +406,8 @@ module RunSh
           param_expan = ParameterExansion.new
           param_expan.name = token.value[1..-1]
           qq_list.add(param_expan)
+        when :param_begin
+          qq_list.add(parse_parameter_expansion)
         when :escape
           parse_single_token_escape(token.value) {|escaped_char|
             qq_list.add(escaped_char)
@@ -414,6 +418,55 @@ module RunSh
       end
 
       raise "syntax error: not terminated double-quoted string: #{qq_list.values}"
+    end
+
+    def parse_parameter_expansion
+      param_expan = ParameterExansion.new
+      param_expan.name = ''
+
+      each_token do |token|
+        case (token.name)
+        when :group_end
+          return param_expan
+        else
+          param_expan.name << token.value
+          if (param_expan.name =~ / ^ (?<name> .+? ) (?<separator> :?[-=?+] | %%? | \#\#? ) /mx) then
+            param_expan.name = $~[:name]
+            param_expan.separator = $~[:separator]
+            if ($' && ! $'.empty?) then
+              param_expan.add($')
+            end
+            return parse_parameter_expansion_default(param_expan)
+          end
+        end
+      end
+
+      raise "syntax error: not terminated parameter expansion: #{param_expan.name}"
+    end
+
+    def parse_parameter_expansion_default(param_expan)
+      each_token do |token|
+        case (token.name)
+        when :group_end
+          return param_expan
+        when :param
+          param_expan.add(parse_single_token_parameter_expansion(token.value))
+        when :param_begin
+          param_expan.add(parse_parameter_expansion)
+        when :escape
+          parse_single_token_escape(token.value) {|escaped_char|
+            field_list.add(QuotedString.new.add(escaped_char))
+          }
+        when :quote
+          param_expan.add(parse_single_quote)
+        when :qquote
+          param_expan.add(parse_double_quote)
+        else
+          param_expan.add(token.value)
+        end
+      end
+
+      raise "syntax error: not terminated parameter expansion: #{param_expan.name}"
     end
   end
 end

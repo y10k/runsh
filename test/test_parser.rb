@@ -337,7 +337,7 @@ module RunSh::Test
       }
     end
 
-    def test_parameter_expansion
+    def test_single_token_parameter_expansion
       parse_script('echo $#') {
         assert_parse(CommandList.new.
                      add(FieldList.new.add('echo')).
@@ -399,7 +399,7 @@ module RunSh::Test
       }
     end
 
-    def test_parameter_expansion_double_quote
+    def test_single_token_parameter_expansion_double_quote
       parse_script('echo "$#"') {
         assert_parse(CommandList.new.
                      add(FieldList.new.add('echo')).
@@ -478,6 +478,297 @@ module RunSh::Test
                      add(FieldList.new.
                          add(DoubleQuotedList.new.
                              add(ParameterExansion.new(name: 'foo')))))
+      }
+    end
+
+    def test_parameter_expansion
+      parse_script('echo ${#}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: '#'))))
+      }
+
+      parse_script('echo ${@}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: '@'))))
+      }
+      parse_script('echo ${*}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: '*'))))
+      }
+
+      parse_script('echo ${?}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: '?'))))
+      }
+
+      parse_script('echo ${-}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: '-'))))
+      }
+
+      parse_script('echo ${$}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: '$'))))
+      }
+
+      parse_script('echo ${!}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: '!'))))
+      }
+
+      parse_script('echo ${0}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: '0'))))
+      }
+
+      parse_script('echo ${1}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: '1'))))
+      }
+
+      parse_script('echo ${10}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: '10'))))
+      }
+
+      parse_script('echo ${foo}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: 'foo'))))
+      }
+
+      parse_script('echo abc${foo}def') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.
+                         add('abc').
+                         add(ParameterExansion.new(name: 'foo')).
+                         add('def')))
+      }
+    end
+
+    def test_parameter_expansion_double_quote
+      parse_script('echo "${#}"') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.
+                         add(DoubleQuotedList.new.
+                             add(ParameterExansion.new(name: '#')))))
+      }
+
+      parse_script('echo "${@}"') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.
+                         add(DoubleQuotedList.new.
+                             add(ParameterExansion.new(name: '@')))))
+      }
+
+      parse_script('echo "${*}"') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.
+                         add(DoubleQuotedList.new.
+                             add(ParameterExansion.new(name: '*')))))
+      }
+
+      parse_script('echo "${?}"') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.
+                         add(DoubleQuotedList.new.
+                             add(ParameterExansion.new(name: '?')))))
+      }
+
+      parse_script('echo "${-}"') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.
+                         add(DoubleQuotedList.new.
+                             add(ParameterExansion.new(name: '-')))))
+      }
+
+      parse_script('echo "${$}"') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.
+                         add(DoubleQuotedList.new.
+                             add(ParameterExansion.new(name: '$')))))
+      }
+
+      parse_script('echo "${!}"') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.
+                         add(DoubleQuotedList.new.
+                             add(ParameterExansion.new(name: '!')))))
+      }
+
+      parse_script('echo "${0}"') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.
+                         add(DoubleQuotedList.new.
+                             add(ParameterExansion.new(name: '0')))))
+      }
+
+      parse_script('echo "${1}"') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.
+                         add(DoubleQuotedList.new.
+                             add(ParameterExansion.new(name: '1')))))
+      }
+
+      parse_script('echo "${10}"') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.
+                         add(DoubleQuotedList.new.
+                             add(ParameterExansion.new(name: '10')))))
+      }
+
+      parse_script('echo "${foo}"') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.
+                         add(DoubleQuotedList.new.
+                             add(ParameterExansion.new(name: 'foo')))))
+      }
+
+      parse_script('echo "abc ${foo} def"') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.
+                         add(DoubleQuotedList.new.
+                             add('abc ').
+                             add(ParameterExansion.new(name: 'foo')).
+                             add(' def'))))
+      }
+    end
+
+    def test_parameter_expansion_default
+      parse_script('echo ${foo:-Hello world.}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: 'foo', separator: ':-').
+                                           add('Hello world.'))))
+      }
+
+      parse_script('echo ${foo-Hello world.}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: 'foo', separator: '-').
+                                           add('Hello world.'))))
+      }
+
+      parse_script('echo ${foo:=Hello world.}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: 'foo', separator: ':=').
+                                           add('Hello world.'))))
+      }
+
+      parse_script('echo ${foo=Hello world.}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: 'foo', separator: '=').
+                                           add('Hello world.'))))
+      }
+
+      parse_script('echo ${foo:?Hello world.}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: 'foo', separator: ':?').
+                                           add('Hello world.'))))
+      }
+
+      parse_script('echo ${foo?Hello world.}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: 'foo', separator: '?').
+                                           add('Hello world.'))))
+      }
+
+      parse_script('echo ${foo:+Hello world.}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: 'foo', separator: ':+').
+                                           add('Hello world.'))))
+      }
+
+      parse_script('echo ${foo+Hello world.}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: 'foo', separator: '+').
+                                           add('Hello world.'))))
+      }
+
+      parse_script('echo ${foo%%Hello world.}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: 'foo', separator: '%%').
+                                           add('Hello world.'))))
+      }
+
+      parse_script('echo ${foo%Hello world.}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: 'foo', separator: '%').
+                                           add('Hello world.'))))
+      }
+
+      parse_script('echo ${foo##Hello world.}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: 'foo', separator: '##').
+                                           add('Hello world.'))))
+      }
+
+      parse_script('echo ${foo#Hello world.}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: 'foo', separator: '#').
+                                           add('Hello world.'))))
+      }
+    end
+
+    def test_parameter_expansion_default_special_token
+      parse_script('echo ${foo:-}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: 'foo', separator: ':-'))))
+      }
+
+      parse_script(%q"echo ${foo:-'Hello world.'}") {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: 'foo', separator: ':-').
+                                           add(QuotedString.new.add('Hello world.')))))
+      }
+
+      parse_script('echo ${foo:-"Hello world."}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: 'foo', separator: ':-').
+                                           add(DoubleQuotedList.new.add('Hello world.')))))
+      }
+
+      parse_script('echo ${foo:-${bar}}') {
+        assert_parse(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: 'foo', separator: ':-').
+                                           add(ParameterExansion.new(name: 'bar')))))
       }
     end
 
