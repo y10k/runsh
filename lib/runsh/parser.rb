@@ -312,18 +312,50 @@ module RunSh
     end
     private :push_back
 
-    def make_single_token_escape(token_value)
+    def make_escape(token_value)
       escaped_char = token_value[1..-1]
       if (escaped_char != "\n") then
         yield(escaped_char)
       end
     end
-    private :make_single_token_escape
+    private :make_escape
 
     def make_single_token_parameter_expansion(token_value)
       ParameterExansion.new(name: token_value[1..-1])
     end
     private :make_single_token_parameter_expansion
+
+    def make_param(add_callback)
+      each_token do |token|
+        case (token.name)
+        when :param
+          add_callback.call(make_single_token_parameter_expansion(token.value))
+        when :param_begin
+          add_callback.call(parse_parameter_expansion)
+        else
+          yield(token)
+        end
+      end
+    end
+    private :make_param
+
+    def make_param_quote(add_callback)
+      make_param(add_callback) do |token|
+        case (token.name)
+        when :escape
+          make_escape(token.value) {|escaped_char|
+            add_callback.call(QuotedString.new.add(escaped_char))
+          }
+        when :quote
+          add_callback.call(parse_single_quote)
+        when :qquote
+          add_callback.call(parse_double_quote)
+        else
+          yield(token)
+        end
+      end
+    end
+    private :make_param_quote
 
     def parse_command
       cmd_list = CommandList.new
@@ -331,25 +363,13 @@ module RunSh
       field_list = FieldList.new
       cmd_list.add(field_list)
 
-      each_token do |token|
+      make_param_quote(proc{|node| field_list.add(node) }) do |token|
         case (token.name)
-        when :param
-          field_list.add(make_single_token_parameter_expansion(token.value))
-        when :param_begin
-          field_list.add(parse_parameter_expansion)
         when :space
           unless (field_list.empty?) then
             field_list = FieldList.new
             cmd_list.add(field_list)
           end
-        when :escape
-          make_single_token_escape(token.value) {|escaped_char|
-            field_list.add(QuotedString.new.add(escaped_char))
-          }
-        when :quote
-          field_list.add(parse_single_quote)
-        when :qquote
-          field_list.add(parse_double_quote)
         when :cmd_sep, :cmd_term
           cmd_list.eoc = token.value
           return cmd_list.strip!
@@ -398,18 +418,12 @@ module RunSh
     def parse_double_quote
       qq_list = DoubleQuotedList.new
 
-      each_token do |token|
+      make_param(proc{|node| qq_list.add(node) }) do |token|
         case (token.name)
         when :qquote
           return qq_list
-        when :param
-          param_expan = ParameterExansion.new
-          param_expan.name = token.value[1..-1]
-          qq_list.add(param_expan)
-        when :param_begin
-          qq_list.add(parse_parameter_expansion)
         when :escape
-          make_single_token_escape(token.value) {|escaped_char|
+          make_escape(token.value) {|escaped_char|
             qq_list.add(escaped_char)
           }
         else
@@ -445,22 +459,10 @@ module RunSh
     end
 
     def parse_parameter_expansion_default(param_expan)
-      each_token do |token|
+      make_param_quote(proc{|node| param_expan.add(node) }) do |token|
         case (token.name)
         when :group_end
           return param_expan
-        when :param
-          param_expan.add(make_single_token_parameter_expansion(token.value))
-        when :param_begin
-          param_expan.add(parse_parameter_expansion)
-        when :escape
-          make_single_token_escape(token.value) {|escaped_char|
-            field_list.add(QuotedString.new.add(escaped_char))
-          }
-        when :quote
-          param_expan.add(parse_single_quote)
-        when :qquote
-          param_expan.add(parse_double_quote)
         else
           param_expan.add(token.value)
         end
