@@ -170,6 +170,47 @@ test_parameter_expansion_list_default_plus_IFS() {
 }
 add_test_case test_parameter_expansion_list_default_plus_IFS
 
+test_parameter_expansion_length_ignored_default() {
+    assert_eval '[ "${#param_value}" = 1 ]'
+
+    assert_eval '[ "${#param_value:-1234}" = 1 ]'
+    assert_eval '[ "${#param_empty:-1234}" = 0 ]'
+    assert_eval '[ "${#param_noset:-1234}" = 0 ]'
+
+    assert_eval '[ "${#param_value-1234}" = 1 ]'
+    assert_eval '[ "${#param_empty-1234}" = 0 ]'
+    assert_eval '[ "${#param_noset-1234}" = 0 ]'
+
+    assert_eval '[ "${#param_value:=1234}" = 1 ]'
+    assert_eval '[ "${#param_empty:=1234}" = 0 ]'
+    assert_eval '[ "${#param_noset:=1234}" = 0 ]'
+
+    assert_eval '[ "${#param_value=1234}" = 1 ]'
+    assert_eval '[ "${#param_empty=1234}" = 0 ]'
+    assert_eval '[ "${#param_noset=1234}" = 0 ]'
+
+    assert_eval '[ "${#param_value:?1234}" = 1 ]'
+    assert_eval '[ "${#param_empty:?1234}" = 0 ]'
+    assert_eval '[ "${#param_noset:?1234}" = 0 ]'
+
+    assert_eval '[ "${#param_value?1234}" = 1 ]'
+    assert_eval '[ "${#param_empty?1234}" = 0 ]'
+    assert_eval '[ "${#param_noset?1234}" = 0 ]'
+
+    assert_eval '[ "${#param_value:+1234}" = 1 ]'
+    assert_eval '[ "${#param_empty:+1234}" = 0 ]'
+    assert_eval '[ "${#param_noset:+1234}" = 0 ]'
+
+    assert_eval '[ "${#param_value+1234}" = 1 ]'
+    assert_eval '[ "${#param_empty+1234}" = 0 ]'
+    assert_eval '[ "${#param_noset+1234}" = 0 ]'
+
+    assert_var a param_value
+    assert_var '' param_empty
+    assert_var '' param_noset
+}
+add_test_case test_parameter_expansion_length_ignored_default
+
 run_test
 
 # Local Variables:
