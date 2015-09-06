@@ -175,12 +175,14 @@ module RunSh
       end
     end
 
-    class CommandListVisitor
+    class Visitor
       def initialize(context, cmd_intp)
         @c = context
         @i = cmd_intp
       end
+    end
 
+    class CommandListVisitor < Visitor
       def visit_cmd_list(cmd_list)
         cmd_list.fields.map{|field_list| field_list.accept(self) }
       end
