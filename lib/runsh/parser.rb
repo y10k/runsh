@@ -42,7 +42,7 @@ module RunSh
       end
 
       def accept(visitor)
-        visitor.visit_cmd_list(self, @fields)
+        visitor.visit_cmd_list(self)
       end
     end
 
@@ -76,7 +76,7 @@ module RunSh
       end
 
       def accept(visitor)
-        visitor.visit_field_list(self, @values)
+        visitor.visit_field_list(self)
       end
     end
 
@@ -99,7 +99,7 @@ module RunSh
       end
 
       def accept(visitor)
-        visitor.visit_qs(self, @string)
+        visitor.visit_qs(self)
       end
     end
 
@@ -129,7 +129,7 @@ module RunSh
       end
 
       def accept(visitor)
-        visitor.visit_qq_list(self, @values)
+        visitor.visit_qq_list(self)
       end
     end
 
@@ -181,20 +181,20 @@ module RunSh
         @i = cmd_intp
       end
 
-      def visit_cmd_list(cmd_list, fields)
-        fields.map{|field_list| field_list.accept(self) }
+      def visit_cmd_list(cmd_list)
+        cmd_list.fields.map{|field_list| field_list.accept(self) }
       end
 
-      def visit_field_list(field_list, values)
-        values.map{|value| value.accept(self) }.join('')
+      def visit_field_list(field_list)
+        field_list.values.map{|value| value.accept(self) }.join('')
       end
 
-      def visit_qs(qs, string)
-        string
+      def visit_qs(qs)
+        qs.string
       end
 
-      def visit_qq_list(qq_list, values)
-        values.map{|value| value.accept(self) }.join('')
+      def visit_qq_list(qq_list)
+        qq_list.values.map{|value| value.accept(self) }.join('')
       end
 
       def visit_s(string)
