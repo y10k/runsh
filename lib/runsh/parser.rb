@@ -8,6 +8,20 @@ module RunSh
           visitor.visit_s(self)
         end
       end
+
+      refine Array do
+        def add_syntax_struct(value)
+          if ((value.is_a? String) &&
+              (self.length > 0) && (self.last.is_a? String))
+          then
+            self.last << value
+          else
+            self << value
+          end
+
+          self
+        end
+      end
     }
 
     class CommandList
@@ -64,14 +78,7 @@ module RunSh
       end
 
       def add(value)
-        if ((value.is_a? String) &&
-            (@values.length > 0) && (@values.last.is_a? String))
-        then
-          @values.last << value
-        else
-          @values << value
-        end
-
+        @values.add_syntax_struct(value)
         self
       end
 
@@ -117,14 +124,7 @@ module RunSh
       end
 
       def add(value)
-        if ((value.is_a? String) &&
-            (@values.length > 0) && (@values.last.is_a? String))
-        then
-          @values.last << value
-        else
-          @values << value
-        end
-
+        @values.add_syntax_struct(value)
         self
       end
 
@@ -153,14 +153,7 @@ module RunSh
       end
 
       def add(value)
-        if ((value.is_a? String) &&
-            (@default_values.length > 0) && (@default_values.last.is_a? String))
-        then
-          @default_values.last << value
-        else
-          @default_values << value
-        end
-
+        @default_values.add_syntax_struct(value)
         self
       end
 
