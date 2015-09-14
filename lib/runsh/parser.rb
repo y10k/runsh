@@ -398,6 +398,134 @@ module RunSh
         super(context, cmd_intp)
         @collection = collection
       end
+
+      def visit_s(string)
+        @collection.add(string)
+        nil
+      end
+
+      def visit_qs(qs)
+        @collection.add(qs)
+        nil
+      end
+
+      def visit_qq_list(qq_list)
+        new_qq_list = qq_list.new
+        collect = CollectVisitor.new(@c, @i, new_qq_list)
+        for value in qq_list.values
+          value.accept(collect)
+        end
+        @collection.add(new_qq_list)
+
+        nil
+      end
+
+      def visit_param_expan(parameter_expansion)
+        case (parameter_expansion.name)
+        when /\A#./
+          plain_param_expan = ParameterExansion.new
+          plain_param_expan.name = parameter_expansion.name[1..-1]
+          len = plain_param_expan.accept(ReplaceVisitor.new(@c, @i)).accept(StringLengthVisitor.new(@c, @i))
+          @collection.add(len.to_s)
+        else
+          expand_value = @c.get_var(parameter_expansion.name)
+
+          unless (parameter_expansion.separator) then
+            if (expand_value) then
+              @collection.add(expand_value)
+            end
+          else
+            case (parameter_expansion.separator)
+            when ':-'
+              if (expand_value.nil? || expand_value.empty?) then
+                for value in parameter_expansion.default_values
+                  value.accept(self)
+                end
+              else
+                @collection.add(expand_value)
+              end
+            when '-'
+              if (expand_value.nil?) then
+                for value in parameter_expansion.default_values
+                  value.accept(self)
+                end
+              else
+                @collection.add(expand_value)
+              end
+            when ':='
+              if (expand_value.nil? || expand_value.empty?) then
+                expand_value = parameter_expansion.default_values.inject(ToStringVisitor.new(@c, @i)) {|visitor, value|
+                  value.accept(visitor)
+                  visitor
+                }.to_s
+                @c.put_var(parameter_expansion.name, expand_value)
+              end
+              @collection.add(expand_value)
+            when '='
+              if (expand_value.nil?) then
+                expand_value = parameter_expansion.default_values.inject(ToStringVisitor.new(@c, @i)) {|visitor, value|
+                  value.accept(visitor)
+                  visitor
+                }.to_s
+                @c.put_var(parameter_expansion.name, expand_value)
+              end
+              @collection.add(expand_value)
+            when ':?'
+              if (expand_value.nil? || expand_value.empty?) then
+                msg = parameter_expansion.default_values.inject(ToStringVisitor.new(@c, @i)) {|visitor, value|
+                  value.accept(visitor)
+                  visitor
+                }.to_s
+                if (msg.empty?) then
+                  raise "undefined parameter: #{parameter_expansion.name}"
+                else
+                  raise "undefined parameter: #{parameter_expansion.name}: #{msg}"
+                end
+              else
+                @collection.add(expand_value)
+              end
+            when '?'
+              if (expand_value.nil?) then
+                msg = parameter_expansion.default_values.inject(ToStringVisitor.new(@c, @i)) {|visitor, value|
+                  value.accept(visitor)
+                  visitor
+                }.to_s
+                if (msg.empty?) then
+                  raise "undefined parameter: #{parameter_expansion.name}"
+                else
+                  raise "undefined parameter: #{parameter_expansion.name}: #{msg}"
+                end
+              else
+                @collection.add(expand_value)
+              end
+            when ':+'
+              unless (expand_value.nil? || expand_value.empty?) then
+                for value in parameter_expansion.default_values
+                  value.accept(self)
+                end
+              end
+            when '+'
+              unless (expand_value.nil?) then
+                for value in parameter_expansion.default_values
+                  value.accept(self)
+                end
+              end
+            when '%%'
+              # not impelmented
+            when '%'
+              # not impelmented
+            when '##'
+              # not impelmented
+            when '#'
+              # not impelmented
+            else
+              raise "syntax error: invalid parameter expansion separator: #{parameter_expansion.separator}"
+            end
+          end
+        end
+
+        nil
+      end
     end
 
     class ReplaceVisitor < Visitor
