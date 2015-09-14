@@ -217,6 +217,38 @@ module RunSh::Test
                     add(ParameterExansion.new(name: 'foo')).
                     add(']'))
     end
+
+    def new_string_length_visitor
+      StringLengthVisitor.new(@c, @i)
+    end
+    private :new_string_length_visitor
+
+    def test_string_length_visitor
+      assert_equal(0, DoubleQuotedList.new.accept(new_string_length_visitor))
+      assert_equal(0, ReplaceHolder.new.accept(new_string_length_visitor))
+      assert_equal(0, FieldList.new.accept(new_string_length_visitor))
+
+      assert_equal(3,
+                   DoubleQuotedList.new.
+                   add('1').
+                   add(QuotedString.new.add('23')).
+                   accept(new_string_length_visitor))
+
+      assert_equal(6,
+                   ReplaceHolder.new.
+                   add('1').
+                   add(QuotedString.new.add('23')).
+                   add(DoubleQuotedList.new.add('456')).
+                   accept(new_string_length_visitor))
+
+      assert_equal(6,
+                   FieldList.new.
+                   add(ReplaceHolder.new.
+                       add('1').
+                       add(QuotedString.new.add('23')).
+                       add(DoubleQuotedList.new.add('456'))).
+                   accept(new_string_length_visitor))
+    end
   end
 
   class CommandParserTest < Test::Unit::TestCase

@@ -295,6 +295,49 @@ module RunSh
       end
     end
 
+    class StringLengthVisitor < Visitor
+      def initialize(context, cmd_intp)
+        super
+        @len = 0
+      end
+
+      def to_i
+        @len
+      end
+
+      def visit_s(string)
+        @len += string.length
+      end
+
+      def visit_qs(qs)
+        @len += qs.string.length
+      end
+
+      def visit_qq_list(qq_list)
+        for value in qq_list.values
+          value.accept(self)
+        end
+
+        @len
+      end
+
+      def visit_replace_holder(replace_holder)
+        for value in replace_holder.values
+          value.accept(self)
+        end
+
+        @len
+      end
+
+      def visit_field_list(field_list)
+        for value in field_list.values
+          value.accept(self)
+        end
+
+        @len
+      end
+    end
+
     def expand(syntax_tree, context, cmd_intp)
       syntax_tree.accept(CommandListVisitor.new(context, cmd_intp))
     end
