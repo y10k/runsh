@@ -249,6 +249,38 @@ module RunSh::Test
                        add(DoubleQuotedList.new.add('456'))).
                    accept(new_string_length_visitor))
     end
+
+    def new_to_string_visitor
+      ToStringVisitor.new(@c, @i)
+    end
+    private :new_to_string_visitor
+
+    def test_to_string_visitor
+      assert_equal('', DoubleQuotedList.new.accept(new_to_string_visitor))
+      assert_equal('', ReplaceHolder.new.accept(new_to_string_visitor))
+      assert_equal('', FieldList.new.accept(new_to_string_visitor))
+
+      assert_equal('abc',
+                   DoubleQuotedList.new.
+                   add('a').
+                   add(QuotedString.new.add('bc')).
+                   accept(new_to_string_visitor))
+
+      assert_equal('abcdef',
+                   ReplaceHolder.new.
+                   add('a').
+                   add(QuotedString.new.add('bc')).
+                   add(DoubleQuotedList.new.add('def')).
+                   accept(new_to_string_visitor))
+
+      assert_equal('abcdef',
+                   FieldList.new.
+                   add(ReplaceHolder.new.
+                       add('a').
+                       add(QuotedString.new.add('bc')).
+                       add(DoubleQuotedList.new.add('def'))).
+                   accept(new_to_string_visitor))
+    end
   end
 
   class CommandParserTest < Test::Unit::TestCase

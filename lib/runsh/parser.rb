@@ -338,6 +338,49 @@ module RunSh
       end
     end
 
+    class ToStringVisitor < Visitor
+      def initialize(context, cmd_intp)
+        super
+        @s = ''
+      end
+
+      def to_s
+        @s
+      end
+
+      def visit_s(string)
+        @s << string
+      end
+
+      def visit_qs(qs)
+        @s << qs.string
+      end
+
+      def visit_qq_list(qq_list)
+        for value in qq_list.values
+          value.accept(self)
+        end
+
+        @s
+      end
+
+      def visit_replace_holder(replace_holder)
+        for value in replace_holder.values
+          value.accept(self)
+        end
+
+        @s
+      end
+
+      def visit_field_list(field_list)
+        for value in field_list.values
+          value.accept(self)
+        end
+
+        @s
+      end
+    end
+
     def expand(syntax_tree, context, cmd_intp)
       syntax_tree.accept(CommandListVisitor.new(context, cmd_intp))
     end
