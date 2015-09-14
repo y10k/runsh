@@ -168,6 +168,29 @@ module RunSh
       end
     end
 
+    class ReplaceHolder
+      def initialize
+        @values = []
+      end
+
+      attr_reader :values
+
+      def ==(other)
+        if (other.is_a? ReplaceHolder) then
+          @values == other.values
+        end
+      end
+
+      def add(value)
+        @values.add_syntax_struct(value)
+        self
+      end
+
+      def accept(visitor)
+        visitor.visit_replace_holder(self)
+      end
+    end
+
     class Visitor
       def initialize(context, cmd_intp)
         @c = context
