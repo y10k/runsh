@@ -8,6 +8,20 @@ module RunSh
           visitor.visit_s(self)
         end
       end
+
+      refine Array do
+        def add_syntax_struct(value)
+          if ((value.is_a? String) &&
+              (self.length > 0) && (self.last.is_a? String))
+          then
+            self.last << value
+          else
+            self << value
+          end
+
+          self
+        end
+      end
     }
 
     class CommandList
@@ -42,7 +56,11 @@ module RunSh
       end
 
       def accept(visitor)
-        visitor.visit_cmd_list(self, @fields)
+        visitor.visit_cmd_list(self)
+      end
+
+      def new
+        self.class.new(eoc: @eoc)
       end
     end
 
@@ -64,19 +82,16 @@ module RunSh
       end
 
       def add(value)
-        if ((value.is_a? String) &&
-            (@values.length > 0) && (@values.last.is_a? String))
-        then
-          @values.last << value
-        else
-          @values << value
-        end
-
+        @values.add_syntax_struct(value)
         self
       end
 
       def accept(visitor)
-        visitor.visit_field_list(self, @values)
+        visitor.visit_field_list(self)
+      end
+
+      def new
+        self.class.new
       end
     end
 
@@ -99,7 +114,7 @@ module RunSh
       end
 
       def accept(visitor)
-        visitor.visit_qs(self, @string)
+        visitor.visit_qs(self)
       end
     end
 
@@ -117,19 +132,16 @@ module RunSh
       end
 
       def add(value)
-        if ((value.is_a? String) &&
-            (@values.length > 0) && (@values.last.is_a? String))
-        then
-          @values.last << value
-        else
-          @values << value
-        end
-
+        @values.add_syntax_struct(value)
         self
       end
 
       def accept(visitor)
-        visitor.visit_qq_list(self, @values)
+        visitor.visit_qq_list(self)
+      end
+
+      def new
+	self.class.new
       end
     end
 
@@ -153,14 +165,7 @@ module RunSh
       end
 
       def add(value)
-        if ((value.is_a? String) &&
-            (@default_values.length > 0) && (@default_values.last.is_a? String))
-        then
-          @default_values.last << value
-        else
-          @default_values << value
-        end
-
+        @default_values.add_syntax_struct(value)
         self
       end
 
@@ -175,30 +180,147 @@ module RunSh
       end
     end
 
-    class CommandListVisitor
+    class ReplaceHolder
+      def initialize
+        @values = []
+      end
+
+      attr_reader :values
+
+      def ==(other)
+        if (other.is_a? ReplaceHolder) then
+          @values == other.values
+        end
+      end
+
+      def add(value)
+        @values.add_syntax_struct(value)
+        self
+      end
+
+      def accept(visitor)
+        visitor.visit_replace_holder(self)
+      end
+    end
+
+    class Visitor
       def initialize(context, cmd_intp)
         @c = context
         @i = cmd_intp
       end
+    end
 
-      def visit_cmd_list(cmd_list, fields)
-        fields.map{|field_list| field_list.accept(self) }
+    class StringLengthVisitor < Visitor
+      def initialize(context, cmd_intp)
+        super
+        @len = 0
       end
 
-      def visit_field_list(field_list, values)
-        values.map{|value| value.accept(self) }.join('')
-      end
-
-      def visit_qs(qs, string)
-        string
-      end
-
-      def visit_qq_list(qq_list, values)
-        values.map{|value| value.accept(self) }.join('')
+      def to_i
+        @len
       end
 
       def visit_s(string)
-        string
+        @len += string.length
+      end
+
+      def visit_qs(qs)
+        @len += qs.string.length
+      end
+
+      def visit_qq_list(qq_list)
+        for value in qq_list.values
+          value.accept(self)
+        end
+
+        @len
+      end
+
+      def visit_replace_holder(replace_holder)
+        for value in replace_holder.values
+          value.accept(self)
+        end
+
+        @len
+      end
+
+      def visit_field_list(field_list)
+        for value in field_list.values
+          value.accept(self)
+        end
+
+        @len
+      end
+    end
+
+    class ToStringVisitor < Visitor
+      def initialize(context, cmd_intp)
+        super
+        @s = ''
+      end
+
+      def to_s
+        @s
+      end
+
+      def visit_s(string)
+        @s << string
+      end
+
+      def visit_qs(qs)
+        @s << qs.string
+      end
+
+      def visit_qq_list(qq_list)
+        for value in qq_list.values
+          value.accept(self)
+        end
+
+        @s
+      end
+
+      def visit_replace_holder(replace_holder)
+        for value in replace_holder.values
+          value.accept(self)
+        end
+
+        @s
+      end
+
+      def visit_field_list(field_list)
+        for value in field_list.values
+          value.accept(self)
+        end
+
+        @s
+      end
+    end
+
+    class CollectVisitor < Visitor
+      def initialize(context, cmd_intp, collection)
+        super(context, cmd_intp)
+        @collection = collection
+      end
+
+      def visit_s(string)
+        @collection.add(string)
+        nil
+      end
+
+      def visit_qs(qs)
+        @collection.add(qs)
+        nil
+      end
+
+      def visit_qq_list(qq_list)
+        new_qq_list = qq_list.new
+        collect = CollectVisitor.new(@c, @i, new_qq_list)
+        for value in qq_list.values
+          value.accept(collect)
+        end
+        @collection.add(new_qq_list)
+
+        nil
       end
 
       def visit_param_expan(parameter_expansion)
@@ -206,81 +328,154 @@ module RunSh
         when /\A#./
           plain_param_expan = ParameterExansion.new
           plain_param_expan.name = parameter_expansion.name[1..-1]
-          value_string = plain_param_expan.accept(self)
-          if (value_string) then
-            value = value_string.length.to_s
-          else
-            value = '0'
-          end
+          len = plain_param_expan.accept(ReplaceVisitor.new(@c, @i)).accept(StringLengthVisitor.new(@c, @i))
+          @collection.add(len.to_s)
         else
-          value = @c.get_var(parameter_expansion.name)
-        end
+          expand_value = @c.get_var(parameter_expansion.name)
 
-        if (parameter_expansion.separator) then
-          case (parameter_expansion.separator)
-          when ':-'
-            if (value.nil? || value.empty?) then
-              value = parameter_expansion.accept_default_values(self)
+          unless (parameter_expansion.separator) then
+            if (expand_value) then
+              @collection.add(expand_value)
             end
-          when '-'
-            if (value.nil?) then
-              value = parameter_expansion.accept_default_values(self)
-            end
-          when ':='
-            if (value.nil? || value.empty?) then
-              value = parameter_expansion.accept_default_values(self)
-              @c.put_var(parameter_expansion.name, value) if value
-            end
-          when '='
-            if (value.nil?) then
-              value = parameter_expansion.accept_default_values(self)
-              @c.put_var(parameter_expansion.name, value) if value
-            end
-          when ':?'
-            if (value.nil? || value.empty?) then
-              if (msg = parameter_expansion.accept_default_values(self)) then
-                raise "undefined parameter: #{parameter_expansion.name}: #{msg}"
-              else
-                raise "undefined parameter: #{parameter_expansion.name}"
-              end
-            end
-          when '?'
-            if (value.nil?) then
-              if (msg = parameter_expansion.accept_default_values(self)) then
-                raise "undefined parameter: #{parameter_expansion.name}: #{msg}"
-              else
-                raise "undefined parameter: #{parameter_expansion.name}"
-              end
-            end
-          when ':+'
-            if (! value.nil? && ! value.empty?) then
-              value = parameter_expansion.accept_default_values(self)
-            end
-          when '+'
-            if (! value.nil?) then
-              value = parameter_expansion.accept_default_values(self)
-            end
-          when '%%'
-            # not implemented.
-          when '%'
-            # not implemented.
-          when '##'
-            # not implemented.
-          when '#'
-            # not implemented.
           else
-            raise "syntax error: invalid parameter expansion separator: #{@separator}"
+            case (parameter_expansion.separator)
+            when ':-'
+              if (expand_value.nil? || expand_value.empty?) then
+                for value in parameter_expansion.default_values
+                  value.accept(self)
+                end
+              else
+                @collection.add(expand_value)
+              end
+            when '-'
+              if (expand_value.nil?) then
+                for value in parameter_expansion.default_values
+                  value.accept(self)
+                end
+              else
+                @collection.add(expand_value)
+              end
+            when ':='
+              if (expand_value.nil? || expand_value.empty?) then
+                expand_value = parameter_expansion.default_values.inject(ToStringVisitor.new(@c, @i)) {|visitor, value|
+                  value.accept(visitor)
+                  visitor
+                }.to_s
+                @c.put_var(parameter_expansion.name, expand_value)
+              end
+              @collection.add(expand_value)
+            when '='
+              if (expand_value.nil?) then
+                expand_value = parameter_expansion.default_values.inject(ToStringVisitor.new(@c, @i)) {|visitor, value|
+                  value.accept(visitor)
+                  visitor
+                }.to_s
+                @c.put_var(parameter_expansion.name, expand_value)
+              end
+              @collection.add(expand_value)
+            when ':?'
+              if (expand_value.nil? || expand_value.empty?) then
+                msg = parameter_expansion.default_values.inject(ToStringVisitor.new(@c, @i)) {|visitor, value|
+                  value.accept(visitor)
+                  visitor
+                }.to_s
+                if (msg.empty?) then
+                  raise "undefined parameter: #{parameter_expansion.name}"
+                else
+                  raise "undefined parameter: #{parameter_expansion.name}: #{msg}"
+                end
+              else
+                @collection.add(expand_value)
+              end
+            when '?'
+              if (expand_value.nil?) then
+                msg = parameter_expansion.default_values.inject(ToStringVisitor.new(@c, @i)) {|visitor, value|
+                  value.accept(visitor)
+                  visitor
+                }.to_s
+                if (msg.empty?) then
+                  raise "undefined parameter: #{parameter_expansion.name}"
+                else
+                  raise "undefined parameter: #{parameter_expansion.name}: #{msg}"
+                end
+              else
+                @collection.add(expand_value)
+              end
+            when ':+'
+              unless (expand_value.nil? || expand_value.empty?) then
+                for value in parameter_expansion.default_values
+                  value.accept(self)
+                end
+              end
+            when '+'
+              unless (expand_value.nil?) then
+                for value in parameter_expansion.default_values
+                  value.accept(self)
+                end
+              end
+            when '%%'
+              # not impelmented
+            when '%'
+              # not impelmented
+            when '##'
+              # not impelmented
+            when '#'
+              # not impelmented
+            else
+              raise "syntax error: invalid parameter expansion separator: #{parameter_expansion.separator}"
+            end
           end
         end
 
-        value || ''
+        nil
       end
     end
 
-    def expand(syntax_tree, context, cmd_intp)
-      syntax_tree.accept(CommandListVisitor.new(context, cmd_intp))
+    class ReplaceVisitor < Visitor
+      def visit_cmd_list(cmd_list)
+        new_cmd_list = cmd_list.new
+        for field_list in cmd_list.fields
+          new_cmd_list.add(field_list.accept(self))
+        end
+
+        new_cmd_list
+      end
+
+      def visit_field_list(field_list)
+        new_field_list = field_list.new
+        for value in field_list.values
+          new_field_list.add(value.accept(self))
+        end
+
+        new_field_list
+      end
+
+      def visit_param_expan(parameter_expansion)
+        replace_holder = ReplaceHolder.new
+        collect = CollectVisitor.new(@c, @i, replace_holder)
+        parameter_expansion.accept(collect)
+
+        replace_holder
+      end
+
+      def visit_qq_list(qq_list)
+        new_qq_list = qq_list.new
+        collect = CollectVisitor.new(@c, @i, new_qq_list)
+        for value in qq_list.values
+          value.accept(collect)
+        end
+
+        new_qq_list
+      end
+
+      def visit_qs(qs)
+        qs
+      end
+
+      def visit_s(string)
+        string
+      end
     end
-    module_function :expand
   end
 
   class CommandParser

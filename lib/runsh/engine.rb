@@ -107,7 +107,10 @@ module RunSh
 
     def run(cmd_list)
       unless (cmd_list.empty?) then
-        cmd_exec_list = SyntaxStruct.expand(cmd_list, @c, self)
+        cmd_list = cmd_list.accept(SyntaxStruct::ReplaceVisitor.new(@c, @i))
+        cmd_exec_list = cmd_list.fields.map{|field_list|
+          field_list.accept(SyntaxStruct::ToStringVisitor.new(@c, @i))
+        }
         system(*cmd_exec_list)
         @c.command_status = $?.exitstatus
       end

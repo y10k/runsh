@@ -14,208 +14,386 @@ module RunSh::Test
       @i = RunSh::CommandInterpreter.new(@c)
     end
 
-    def assert_syntax(expected_result, cmd_syntax)
-      assert_equal(expected_result,
-                   RunSh::SyntaxStruct.expand(cmd_syntax, @c, @i))
+    def new_string_length_visitor
+      StringLengthVisitor.new(@c, @i)
     end
-    private :assert_syntax
+    private :new_string_length_visitor
 
-    def assert_syntax_error(expected_error_type, expected_error_message, cmd_syntax)
-      begin
-        RunSh::SyntaxStruct.expand(cmd_syntax, @c, @i)
-      rescue
-        assert_instance_of(expected_error_type, $!)
-        assert(($!.message.end_with? expected_error_message),
-               "expected <#{expected_error_message}> but was <#{$!.message}>.")
-        return
-      end
-      flunk('no error!')
-    end
-    private :assert_syntax
+    def test_string_length_visitor
+      assert_equal(0, DoubleQuotedList.new.accept(new_string_length_visitor))
+      assert_equal(0, ReplaceHolder.new.accept(new_string_length_visitor))
+      assert_equal(0, FieldList.new.accept(new_string_length_visitor))
 
-    def test_command_list_empty
-      assert_syntax([], CommandList.new)
-    end
+      assert_equal(3,
+                   DoubleQuotedList.new.
+                   add('1').
+                   add(QuotedString.new.add('23')).
+                   accept(new_string_length_visitor))
 
-    def test_command_list_simple
-      assert_syntax(%w[ echo HALO ],
-                    CommandList.new.
-                    add(FieldList.new.add('echo')).
-                    add(FieldList.new.add('HALO')))
-    end
+      assert_equal(6,
+                   ReplaceHolder.new.
+                   add('1').
+                   add(QuotedString.new.add('23')).
+                   add(DoubleQuotedList.new.add('456')).
+                   accept(new_string_length_visitor))
 
-    def test_command_list_single_quote
-      assert_syntax([ 'echo', 'Hello world.' ],
-                    CommandList.new.
-                    add(FieldList.new.add('echo')).
-                    add(FieldList.new.add(QuotedString.new.add('Hello world.'))))
+      assert_equal(6,
+                   FieldList.new.
+                   add(ReplaceHolder.new.
+                       add('1').
+                       add(QuotedString.new.add('23')).
+                       add(DoubleQuotedList.new.add('456'))).
+                   accept(new_string_length_visitor))
     end
 
-    def test_command_list_double_quote
-      assert_syntax([ 'echo', 'Hello world.' ],
-                    CommandList.new.
-                    add(FieldList.new.add('echo')).
-                    add(FieldList.new.add(DoubleQuotedList.new.add('Hello world.'))))
+    def new_to_string_visitor
+      ToStringVisitor.new(@c, @i)
+    end
+    private :new_to_string_visitor
+
+    def test_to_string_visitor
+      assert_equal('', DoubleQuotedList.new.accept(new_to_string_visitor))
+      assert_equal('', ReplaceHolder.new.accept(new_to_string_visitor))
+      assert_equal('', FieldList.new.accept(new_to_string_visitor))
+
+      assert_equal('abc',
+                   DoubleQuotedList.new.
+                   add('a').
+                   add(QuotedString.new.add('bc')).
+                   accept(new_to_string_visitor))
+
+      assert_equal('abcdef',
+                   ReplaceHolder.new.
+                   add('a').
+                   add(QuotedString.new.add('bc')).
+                   add(DoubleQuotedList.new.add('def')).
+                   accept(new_to_string_visitor))
+
+      assert_equal('abcdef',
+                   FieldList.new.
+                   add(ReplaceHolder.new.
+                       add('a').
+                       add(QuotedString.new.add('bc')).
+                       add(DoubleQuotedList.new.add('def'))).
+                   accept(new_to_string_visitor))
     end
 
-    def test_command_list_mixed
-      assert_syntax([ 'echo', 'Hello world.' ],
-                    CommandList.new.
-                    add(FieldList.new.add('echo')).
-                    add(FieldList.new.
-                        add('Hello').
-                        add(QuotedString.new.add(' ')).
-                        add(DoubleQuotedList.new.add('world')).
-                        add('.')))
+    def new_replace_visitor
+      ReplaceVisitor.new(@c, @i)
+    end
+    private :new_replace_visitor
+
+    def assert_replace(expected_syntax_tree, syntax_tree)
+      assert_equal(expected_syntax_tree,
+                   syntax_tree.accept(new_replace_visitor))
+    end
+    private :assert_replace
+
+    def test_replace_visitor_simple
+      assert_replace(CommandList.new, CommandList.new)
+      assert_replace(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.
+                         add('Hello').
+                         add(QuotedString.new.add(' ')).
+                         add(DoubleQuotedList.new.add('world.'))),
+                     CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.
+                         add('Hello').
+                         add(QuotedString.new.add(' ')).
+                         add(DoubleQuotedList.new.add('world.'))))
     end
 
-    def test_parameter_expansion_plain_name
+    def test_replace_visitor_parameter_expansion_plain_name
+      assert_replace(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ReplaceHolder.new)),
+                     CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: 'foo'))))
+
       @c.put_var('foo', 'HALO')
-      assert_syntax('HALO', ParameterExansion.new(name: 'foo'))
-
-      @c.unset_var('foo')
-      assert_syntax('', ParameterExansion.new(name: 'foo'))
+      assert_replace(CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ReplaceHolder.new.add('HALO'))),
+                     CommandList.new.
+                     add(FieldList.new.add('echo')).
+                     add(FieldList.new.add(ParameterExansion.new(name: 'foo'))))
     end
 
-    def test_parameter_expansion_program_name
+    def test_replace_visitor_parameter_expansion_program_name
       @c.program_name = 'foo'
-      assert_syntax('foo', ParameterExansion.new(name: '0'))
+      assert_replace(ReplaceHolder.new.add('foo'), ParameterExansion.new(name: '0'))
     end
 
-    def test_parameter_expansion_args
-      assert_syntax('0', ParameterExansion.new(name: '#'))
-      assert_syntax('', ParameterExansion.new(name: '@'))
-      assert_syntax('', ParameterExansion.new(name: '*'))
-      assert_syntax('', ParameterExansion.new(name: '1'))
-      assert_syntax('', ParameterExansion.new(name: '2'))
-      assert_syntax('', ParameterExansion.new(name: '3'))
+    def test_replace_visitor_parameter_args
+      assert_replace(ReplaceHolder.new.add('0'), ParameterExansion.new(name: '#'))
+      assert_replace(ReplaceHolder.new, ParameterExansion.new(name: '@'))
+      assert_replace(ReplaceHolder.new, ParameterExansion.new(name: '*'))
+      assert_replace(ReplaceHolder.new, ParameterExansion.new(name: '1'))
+      assert_replace(ReplaceHolder.new, ParameterExansion.new(name: '2'))
+      assert_replace(ReplaceHolder.new, ParameterExansion.new(name: '3'))
 
       @c.args = %w[ foo bar baz ]
-      assert_syntax('3', ParameterExansion.new(name: '#'))
-      assert_syntax('foo bar baz', ParameterExansion.new(name: '@'))
-      assert_syntax('foo bar baz', ParameterExansion.new(name: '*'))
-      assert_syntax('foo', ParameterExansion.new(name: '1'))
-      assert_syntax('bar', ParameterExansion.new(name: '2'))
-      assert_syntax('baz', ParameterExansion.new(name: '3'))
+      assert_replace(ReplaceHolder.new.add('3'), ParameterExansion.new(name: '#'))
+      assert_replace(ReplaceHolder.new.add('foo bar baz'), ParameterExansion.new(name: '@'))
+      assert_replace(ReplaceHolder.new.add('foo bar baz'), ParameterExansion.new(name: '*'))
+      assert_replace(ReplaceHolder.new.add('foo'), ParameterExansion.new(name: '1'))
+      assert_replace(ReplaceHolder.new.add('bar'), ParameterExansion.new(name: '2'))
+      assert_replace(ReplaceHolder.new.add('baz'), ParameterExansion.new(name: '3'))
     end
 
-    def test_parameter_expansion_pid
+    def test_replace_visitor_parameter_expansion_expansion_pid
       @c.pid = 1234
-      assert_syntax('1234', ParameterExansion.new(name: '$'))
+      assert_replace(ReplaceHolder.new.add('1234'), ParameterExansion.new(name: '$'))
     end
 
-    def test_parameter_expansion_command_status
-      assert_syntax('0', ParameterExansion.new(name: '?'))
+    def test_replace_visitor_parameter_expansion_command_status
+      assert_replace(ReplaceHolder.new.add('0'), ParameterExansion.new(name: '?'))
 
       @c.command_status = 1
-      assert_syntax('1', ParameterExansion.new(name: '?'))
+      assert_replace(ReplaceHolder.new.add('1'), ParameterExansion.new(name: '?'))
     end
 
-    def test_parameter_expansion_string_length
-      assert_syntax('0', ParameterExansion.new(name: '#foo'))
+    def test_replace_visitor_parameter_expansion_string_length
+      assert_replace(ReplaceHolder.new.add('0'), ParameterExansion.new(name: '#foo'))
+
+      @c.put_var('foo', '')
+      assert_replace(ReplaceHolder.new.add('0'), ParameterExansion.new(name: '#foo'))
 
       @c.put_var('foo', 'Hello world.')
-      assert_syntax('12', ParameterExansion.new(name: '#foo'))
+      assert_replace(ReplaceHolder.new.add('12'), ParameterExansion.new(name: '#foo'))
     end
 
-    def test_parameter_expansion_use_default_value
-      assert_syntax('HALO', ParameterExansion.new(name: 'foo', separator: ':-').add('HALO'))
+    def test_replace_visitor_parameter_expansion_use_default_value
+      assert_replace(ReplaceHolder.new.
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')),
+                     ParameterExansion.new(name: 'foo', separator: ':-').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
       assert_nil(@c.get_var('foo'))
 
-      @c.put_var('foo', '')
-      assert_syntax('HALO', ParameterExansion.new(name: 'foo', separator: ':-').add('HALO'))
-      assert_equal('', @c.get_var('foo'))
-
-      @c.put_var('foo', 'Hello world.')
-      assert_syntax('Hello world.', ParameterExansion.new(name: 'foo', separator: ':-').add('HALO'))
-      assert_equal('Hello world.', @c.get_var('foo'))
-
-      assert_syntax('HALO', ParameterExansion.new(name: 'bar', separator: '-').add('HALO'))
+      assert_replace(ReplaceHolder.new.
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')),
+                     ParameterExansion.new(name: 'bar', separator: '-').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
       assert_nil(@c.get_var('bar'))
 
+      @c.put_var('foo', '')
+      assert_replace(ReplaceHolder.new.
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')),
+                     ParameterExansion.new(name: 'foo', separator: ':-').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
+      assert_equal('', @c.get_var('foo'))
+
       @c.put_var('bar', '')
-      assert_syntax('', ParameterExansion.new(name: 'bar', separator: '-').add('HALO'))
+      assert_replace(ReplaceHolder.new.add(''),
+                     ParameterExansion.new(name: 'bar', separator: '-').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
       assert_equal('', @c.get_var('bar'))
+
+      @c.put_var('foo', 'HALO')
+      assert_replace(ReplaceHolder.new.add('HALO'),
+                     ParameterExansion.new(name: 'foo', separator: ':-').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
+
+      @c.put_var('bar', 'HALO')
+      assert_replace(ReplaceHolder.new.add('HALO'),
+                     ParameterExansion.new(name: 'bar', separator: '-').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
     end
 
-    def test_parameter_expansion_assign_default_value
-      assert_syntax('HALO', ParameterExansion.new(name: 'foo', separator: ':=').add('HALO'))
-      assert_equal('HALO', @c.get_var('foo'))
+    def test_replace_visitor_parameter_expansion_assign_default_value
+      assert_replace(ReplaceHolder.new.add('Hello world.'),
+                     ParameterExansion.new(name: 'foo', separator: ':=').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
+      assert_equal('Hello world.', @c.get_var('foo'))
+      
+      assert_replace(ReplaceHolder.new.add('Hello world.'),
+                     ParameterExansion.new(name: 'bar', separator: '=').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
+      assert_equal('Hello world.', @c.get_var('bar'))
 
       @c.put_var('foo', '')
-      assert_syntax('HALO', ParameterExansion.new(name: 'foo', separator: ':=').add('HALO'))
-      assert_equal('HALO', @c.get_var('foo'))
-
-      @c.put_var('foo', 'Hello world.')
-      assert_syntax('Hello world.', ParameterExansion.new(name: 'foo', separator: ':=').add('HALO'))
+      assert_replace(ReplaceHolder.new.add('Hello world.'),
+                     ParameterExansion.new(name: 'foo', separator: ':=').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
       assert_equal('Hello world.', @c.get_var('foo'))
 
-      assert_syntax('HALO', ParameterExansion.new(name: 'bar', separator: '=').add('HALO'))
+      @c.put_var('bar', '')
+      assert_replace(ReplaceHolder.new.add(''),
+                     ParameterExansion.new(name: 'bar', separator: '=').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
+      assert_equal('', @c.get_var('bar'))
+
+      @c.put_var('foo', 'HALO')
+      assert_replace(ReplaceHolder.new.add('HALO'),
+                     ParameterExansion.new(name: 'foo', separator: ':=').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
+
+      @c.put_var('bar', 'HALO')
+      assert_replace(ReplaceHolder.new.add('HALO'),
+                     ParameterExansion.new(name: 'bar', separator: '=').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
+    end
+
+    def test_replace_visitor_parameter_expansion_indicate_error
+      assert_raise(RuntimeError.new('undefined parameter: foo')) {
+        ParameterExansion.new(name: 'foo', separator: ':?').
+          accept(new_replace_visitor)
+      }
+      assert_raise(RuntimeError.new('undefined parameter: foo: Hello world.')) {
+        ParameterExansion.new(name: 'foo', separator: ':?').
+          add('Hello').
+          add(QuotedString.new.add(' ')).
+          add(DoubleQuotedList.new.add('world.')).
+          accept(new_replace_visitor)
+      }
+      assert_nil(@c.get_var('foo'))
+
+      assert_raise(RuntimeError.new('undefined parameter: bar')) {
+        ParameterExansion.new(name: 'bar', separator: '?').
+          accept(new_replace_visitor)
+      }
+      assert_raise(RuntimeError.new('undefined parameter: bar: Hello world.')) {
+        ParameterExansion.new(name: 'bar', separator: '?').
+          add('Hello').
+          add(QuotedString.new.add(' ')).
+          add(DoubleQuotedList.new.add('world.')).
+          accept(new_replace_visitor)
+      }
+      assert_nil(@c.get_var('bar'))
+
+      @c.put_var('foo', '')
+      assert_raise(RuntimeError.new('undefined parameter: foo')) {
+        ParameterExansion.new(name: 'foo', separator: ':?').
+          accept(new_replace_visitor)
+      }
+      assert_raise(RuntimeError.new('undefined parameter: foo: Hello world.')) {
+        ParameterExansion.new(name: 'foo', separator: ':?').
+          add('Hello').
+          add(QuotedString.new.add(' ')).
+          add(DoubleQuotedList.new.add('world.')).
+          accept(new_replace_visitor)
+      }
+      assert_equal('', @c.get_var('foo'))
+
+      @c.put_var('bar', '')
+      assert_replace(ReplaceHolder.new.add(''),
+                     ParameterExansion.new(name: 'bar', separator: '?'))
+      assert_replace(ReplaceHolder.new.add(''),
+                     ParameterExansion.new(name: 'bar', separator: '?').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
+      assert_equal('', @c.get_var('bar'))
+
+      @c.put_var('foo', 'HALO')
+      assert_replace(ReplaceHolder.new.add('HALO'),
+                     ParameterExansion.new(name: 'foo', separator: ':?'))
+      assert_replace(ReplaceHolder.new.add('HALO'),
+                     ParameterExansion.new(name: 'foo', separator: ':?').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
+      assert_equal('HALO', @c.get_var('foo'))
+
+      @c.put_var('bar', 'HALO')
+      assert_replace(ReplaceHolder.new.add('HALO'),
+                     ParameterExansion.new(name: 'bar', separator: '?'))
+      assert_replace(ReplaceHolder.new.add('HALO'),
+                     ParameterExansion.new(name: 'bar', separator: '?').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
       assert_equal('HALO', @c.get_var('bar'))
-
-      @c.put_var('bar', '')
-      assert_syntax('', ParameterExansion.new(name: 'bar', separator: '=').add('HALO'))
-      assert_equal('', @c.get_var('bar'))
     end
 
-    def test_parameter_expansion_indicate_error
-      assert_syntax_error(RuntimeError, 'foo',
-                          ParameterExansion.new(name: 'foo', separator: ':?'))
-      assert_syntax_error(RuntimeError, 'foo: HALO',
-                          ParameterExansion.new(name: 'foo', separator: ':?').add('HALO'))
+    def test_replace_visitor_parameter_expansion_use_alternative_value
+      assert_replace(ReplaceHolder.new,
+                     ParameterExansion.new(name: 'foo', separator: ':+').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
       assert_nil(@c.get_var('foo'))
 
-      @c.put_var('foo', '')
-      assert_syntax_error(RuntimeError, 'foo',
-                          ParameterExansion.new(name: 'foo', separator: ':?'))
-      assert_syntax_error(RuntimeError, 'foo: HALO',
-                          ParameterExansion.new(name: 'foo', separator: ':?').add('HALO'))
-      assert_equal('', @c.get_var('foo'))
-
-      @c.put_var('foo', 'Hello world.')
-      assert_syntax('Hello world.', ParameterExansion.new(name: 'foo', separator: ':?'))
-      assert_syntax('Hello world.', ParameterExansion.new(name: 'foo', separator: ':?').add('HALO'))
-      assert_equal('Hello world.', @c.get_var('foo'))
-
-      assert_syntax_error(RuntimeError, 'bar',
-                          ParameterExansion.new(name: 'bar', separator: '?'))
-      assert_syntax_error(RuntimeError, 'bar: HALO',
-                          ParameterExansion.new(name: 'bar', separator: '?').add('HALO'))
+      assert_replace(ReplaceHolder.new,
+                     ParameterExansion.new(name: 'bar', separator: '+').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
       assert_nil(@c.get_var('bar'))
 
-      @c.put_var('bar', '')
-      assert_syntax('Hello world.', ParameterExansion.new(name: 'foo', separator: '?'))
-      assert_syntax('Hello world.', ParameterExansion.new(name: 'foo', separator: '?').add('HALO'))
-      assert_equal('', @c.get_var('bar'))
-    end
-
-    def test_parameter_expansion_use_alternative_value
-      assert_syntax('', ParameterExansion.new(name: 'foo', separator: ':+').add('HALO'))
-      assert_nil(@c.get_var('foo'))
-
       @c.put_var('foo', '')
-      assert_syntax('', ParameterExansion.new(name: 'foo', separator: ':+').add('HALO'))
+      assert_replace(ReplaceHolder.new,
+                     ParameterExansion.new(name: 'foo', separator: ':+').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
       assert_equal('', @c.get_var('foo'))
 
-      @c.put_var('foo', 'Hello world.')
-      assert_syntax('HALO', ParameterExansion.new(name: 'foo', separator: ':+').add('HALO'))
-      assert_equal('Hello world.', @c.get_var('foo'))
-
-      assert_syntax('', ParameterExansion.new(name: 'bar', separator: '+').add('HALO'))
-      assert_nil(@c.get_var('bar'))
-
       @c.put_var('bar', '')
-      assert_syntax('HALO', ParameterExansion.new(name: 'bar', separator: '+').add('HALO'))
+      assert_replace(ReplaceHolder.new.
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')),
+                     ParameterExansion.new(name: 'bar', separator: '+').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
       assert_equal('', @c.get_var('bar'))
-    end
 
-    def test_parameter_expansion_nested_parameter_expansion
-      @c.put_var('foo', 'Hello world.')
-      assert_syntax('[Hello world.]',
-                    ParameterExansion.new(name: 'bar', separator: ':-').
-                    add('[').
-                    add(ParameterExansion.new(name: 'foo')).
-                    add(']'))
+      @c.put_var('foo', 'HALO')
+      assert_replace(ReplaceHolder.new.
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')),
+                     ParameterExansion.new(name: 'foo', separator: ':+').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
+      assert_equal('HALO', @c.get_var('foo'))
+
+      @c.put_var('bar', 'HALO')
+      assert_replace(ReplaceHolder.new.
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')),
+                     ParameterExansion.new(name: 'bar', separator: '+').
+                     add('Hello').
+                     add(QuotedString.new.add(' ')).
+                     add(DoubleQuotedList.new.add('world.')))
+      assert_equal('HALO', @c.get_var('bar'))
     end
   end
 
