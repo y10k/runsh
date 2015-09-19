@@ -2,6 +2,7 @@
 
 require 'runsh/engine'
 require 'runsh/parser'
+require 'runsh/syntax'
 require 'runsh/token'
 require 'runsh/version'
 
