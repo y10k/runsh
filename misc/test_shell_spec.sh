@@ -238,6 +238,18 @@ test_field_splitting_default_IFS_more_delimiters() {
 }
 add_test_case test_field_splitting_default_IFS_more_delimiters
 
+test_field_splitting_default_IFS_no_fields() {
+    local spc=' ' tab='	' nl='
+'
+
+    local split_target="${nl}${spc}${tab}${spc}${spc}${tab}${nl}${tab}${nl}${tab}${nl}${spc}"
+    set -- ${split_target}
+    local arg_num="$#"
+
+    assert_var 0 arg_num
+}
+add_test_case test_field_splitting_default_IFS_no_fields
+
 test_field_splitting_unset_IFS() {
     unset IFS
 
@@ -300,15 +312,38 @@ test_field_splitting_set_IFS_more_delimiters() {
 }
 add_test_case test_field_splitting_set_IFS_more_delimiters
 
-test_field_splitting_no_IFS() {
-    IFS=''
+test_field_splitting_set_IFS_no_fields() {
+    IFS=' .'
 
-    local split_target="a bc def"
+    local split_target="     "
+    set -- ${split_target}
+    local arg_num="$#"
+
+    assert_var 0 arg_num
+}
+add_test_case test_field_splitting_set_IFS_no_fields
+
+test_field_splitting_set_IFS_empty_field() {
+    IFS=' .'
+
+    local split_target="  .   "
     set -- ${split_target}
     local arg_num="$#" arg1="$1"
 
     assert_var 1 arg_num
-    assert_var 'a bc def' arg1
+    assert_var '' arg1
+}
+add_test_case test_field_splitting_set_IFS_empty_field
+
+test_field_splitting_no_IFS() {
+    IFS=''
+
+    local split_target=" a bc def  "
+    set -- ${split_target}
+    local arg_num="$#" arg1="$1"
+
+    assert_var 1 arg_num
+    assert_var ' a bc def  ' arg1
 }
 add_test_case test_field_splitting_no_IFS
 
